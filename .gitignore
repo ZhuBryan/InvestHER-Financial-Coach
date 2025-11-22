@@ -1,2 +1,14 @@
+# Environments
 /env
 .env
+venv/
+__pycache__/
+*.pyc
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Node
+node_modules/
+
