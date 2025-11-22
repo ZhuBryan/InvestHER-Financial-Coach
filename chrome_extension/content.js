@@ -187,18 +187,40 @@ function detectProduct() {
   // Prevent multiple popups
   if (document.getElementById('investher-popup-overlay')) return;
 
-  // 1. Check for Cart Totals first (Higher priority)
+  // 1. Check if we are on a Checkout or Cart page
+  const currentUrl = window.location.href.toLowerCase();
+  const isCheckoutContext = currentUrl.includes('checkout') || 
+                            currentUrl.includes('cart') || 
+                            currentUrl.includes('basket') || 
+                            currentUrl.includes('payment') ||
+                            currentUrl.includes('buy/spc') || // Amazon Checkout
+                            currentUrl.includes('gp/buy');    // Amazon Buy
+
+  if (!isCheckoutContext) {
+    return;
+  }
+
+  // 2. Check for Cart Totals first (Higher priority)
   const totalSelectors = [
-    '.sc-subtotal-amount-activecart', // Amazon Cart
-    '.cart-total .price', // Shopify
-    '.order-total .value',
+    '#sc-subtotal-amount-activecart', // Amazon Cart ID
+    '.sc-subtotal-amount-activecart', // Amazon Cart Class
+    '[data-name="Subtotals"]', // Amazon Checkout
+    '#subtotals-marketplace-table', // Amazon Checkout
+    '.grand-total-price',
+    '.order-total',
+    '.cart-total',
+    '.checkout-total',
     '[data-test-id="TOTAL"]',
-    '.summary-total .price'
+    '.summary-total',
+    '.estimated-price',
+    '.total-line-item .price',
+    '.payment-due__price'
   ];
 
   let price = 0;
   let title = "Your Cart";
 
+  // Strategy A: Specific Selectors
   for (const selector of totalSelectors) {
     const el = document.querySelector(selector);
     if (el) {
@@ -206,13 +228,53 @@ function detectProduct() {
       const p = parseFloat(text);
       if (!isNaN(p) && p > 0) {
         price = p;
-        console.log("InvestHer: Detected Cart Total", price);
+        console.log("InvestHer: Detected Cart Total (Selector)", price);
         break;
       }
     }
   }
 
-  // 2. If no cart total, check for single product price
+  // Strategy B: Text Search for "Total" (Fallback)
+  if (price === 0) {
+    const allElements = document.querySelectorAll('div, span, p, td, h3, h4');
+    for (const el of allElements) {
+      if (el.children.length > 0) continue; // Skip containers
+      
+      const text = el.innerText.toLowerCase();
+      if (text.includes('total') && !text.includes('subtotal') && text.length < 30) {
+        // Found a "Total" label. Look for price nearby.
+        // 1. Check the element itself if it has a number
+        let pText = el.innerText.replace(/[^0-9.]/g, '');
+        let p = parseFloat(pText);
+        
+        // 2. Check next sibling
+        if (isNaN(p) || p === 0) {
+            const next = el.nextElementSibling;
+            if (next) {
+                pText = next.innerText.replace(/[^0-9.]/g, '');
+                p = parseFloat(pText);
+            }
+        }
+
+        // 3. Check parent's next sibling (common in tables)
+        if (isNaN(p) || p === 0) {
+            const parent = el.parentElement;
+            if (parent && parent.nextElementSibling) {
+                pText = parent.nextElementSibling.innerText.replace(/[^0-9.]/g, '');
+                p = parseFloat(pText);
+            }
+        }
+
+        if (!isNaN(p) && p > 0) {
+            price = p;
+            console.log("InvestHer: Detected Cart Total (Text Search)", price);
+            break;
+        }
+      }
+    }
+  }
+
+  // 3. If no cart total, check for single product price (Lowest Priority)
   if (price === 0) {
     const priceSelectors = [
       '.a-price .a-offscreen', // Amazon Product
@@ -253,8 +315,6 @@ function detectProduct() {
   }
 }
 
-// Run detection immediately and then check again shortly after for dynamic content
+// Run detection immediately and then check periodically for SPAs/Navigation
 detectProduct();
-// Check a few times for dynamic SPAs
-setTimeout(detectProduct, 2000);
-setTimeout(detectProduct, 5000);
+setInterval(detectProduct, 2000);
