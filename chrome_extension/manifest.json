@@ -4,6 +4,9 @@
   "version": "1.0",
   "permissions": ["activeTab", "scripting"],
   "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],

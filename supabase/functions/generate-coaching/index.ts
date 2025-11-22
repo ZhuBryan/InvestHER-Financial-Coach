@@ -40,9 +40,20 @@ serve(async (req) => {
 The user is about to spend $${price} on '${item_name}'.
 Product description: '${description}'.
 The user's goals are: ${goalList}.
-Write a short, punchy 1-sentence message (max 20 words) persuading them to save this money instead.
-Relate it specifically to their goals.
-Do NOT mention the name of the item they are buying.`;
+
+Task:
+1. Calculate how many "fancy coffees" (at $6 each) this amount equals. Format: "X fancy coffees with friends".
+2. Calculate how many weeks of groceries (at $100/week) this amount equals. Format: "X weeks of groceries".
+3. Calculate a specific contribution to their goal ("${goalList}"). Format: "X% of your [Goal Name] goal" or "A significant step toward [Goal Name]".
+4. Generate 1 "Pro" of buying this item (be witty/sarcastic but acknowledge it's nice).
+5. Generate 1 "Con" of buying this item (financial reality check).
+
+Return ONLY a JSON object with this structure:
+{
+  "alternatives": ["coffee_calc", "grocery_calc", "goal_calc"],
+  "pro": "The pro text",
+  "con": "The con text"
+}`;
 
     const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
         method: 'POST',
@@ -51,49 +62,43 @@ Do NOT mention the name of the item they are buying.`;
     });
     
     const geminiData = await geminiRes.json();
-    let aiMessage = "Think about your financial freedom!";
+    let aiResponse = {
+        alternatives: ["Invest in your future", "Save for a rainy day", "Treat yourself later"],
+        pro: "It looks nice!",
+        con: "Do you really need it?"
+    };
+
     if (geminiData.candidates && geminiData.candidates[0].content) {
-        aiMessage = geminiData.candidates[0].content.parts[0].text.trim();
+        const text = geminiData.candidates[0].content.parts[0].text.trim();
+        // Clean up markdown code blocks if present
+        const jsonText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        try {
+            aiResponse = JSON.parse(jsonText);
+        } catch (e) {
+            console.error("JSON Parse Error:", e);
+        }
     }
 
-    // 4. Call ElevenLabs API
+    // 4. Call ElevenLabs API (Optional - keeping it simple for now, maybe just read the Con?)
+    // For this new UI, we might not need audio immediately, or we can read the "Con" message.
+    // Let's skip audio for now to speed up the UI rendering as per the new design which doesn't explicitly show a speaker icon in the main view.
+    // Or we can generate audio for the "Con" message.
+    
+    /* 
     const elevenApiKey = Deno.env.get('ELEVENLABS_API_KEY');
-    const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM`, {
-        method: 'POST',
-        headers: {
-            'xi-api-key': elevenApiKey ?? '',
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            text: aiMessage,
-            model_id: "eleven_monolingual_v1",
-            voice_settings: { stability: 0.5, similarity_boost: 0.5 }
-        })
-    });
-
-    if (!elevenRes.ok) {
-        console.error("ElevenLabs Error:", await elevenRes.text());
-        // Return just text if audio fails
-        return new Response(
-            JSON.stringify({ message: aiMessage, audio: null }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-    }
-
-    const audioBlob = await elevenRes.blob();
-    const audioArrayBuffer = await audioBlob.arrayBuffer();
-    const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioArrayBuffer)));
+    // ... (Audio generation logic if needed)
+    */
 
     // 5. Return Result
     return new Response(
-      JSON.stringify({ message: aiMessage, audio: audioBase64 }),
+      JSON.stringify(aiResponse),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
   } catch (error) {
     console.error("Edge Function Error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error as Error).message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     )
   }

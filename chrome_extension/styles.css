@@ -1,79 +1,233 @@
-#investher-overlay {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 9999999;
-    font-family: sans-serif;
+/* InvestHer Chrome Extension Styles - "Before You Buy" Theme */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+#investher-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 2147483647; /* Max z-index */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Inter', sans-serif;
 }
 
-.ih-card {
-    background: white;
-    width: 320px;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    overflow: hidden;
-    border: 2px solid #6C63FF;
-    animation: slideIn 0.5s ease;
+#investher-popup-container {
+  width: 380px;
+  background: #FFFFFF;
+  border-radius: 24px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  color: #1F2937;
+  position: relative;
+  animation: investher-pop-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.ih-header {
-    background: #6C63FF;
-    color: white;
-    padding: 12px;
-    display: flex;
-    justify-content: space-between;
-    font-weight: bold;
+@keyframes investher-pop-in {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
-#ih-close { background: none; border: none; color: white; cursor: pointer; font-size: 18px; }
-
-.ih-content { padding: 15px; color: #333; }
-
-.ih-alert { font-size: 15px; margin-bottom: 10px; }
-
-.ih-ai-box {
-    background: #f0f0ff;
-    padding: 10px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 15px;
+.investher-header {
+  padding: 24px 24px 0 24px;
+  text-align: center;
 }
 
-.ih-ai-box p { font-style: italic; font-size: 13px; margin: 0; color: #6C63FF; }
-
-#ih-speak {
-    background: white;
-    border: 1px solid #6C63FF;
-    border-radius: 50%;
-    width: 28px;
-    height: 28px;
-    cursor: pointer;
+.investher-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #000000;
+  margin: 0 0 8px 0;
 }
 
-.ih-stat { font-size: 13px; color: #555; margin-bottom: 15px; }
-
-.ih-actions { display: flex; gap: 10px; }
-
-#ih-invest {
-    flex: 1;
-    background: #6C63FF;
-    color: white;
-    border: none;
-    padding: 8px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
+.investher-price {
+  font-size: 48px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0;
+  line-height: 1.1;
 }
 
-#ih-buy {
-    flex: 1;
-    background: white;
-    border: 1px solid #ccc;
-    padding: 8px;
-    border-radius: 5px;
-    cursor: pointer;
+.investher-subtitle {
+  font-size: 14px;
+  color: #6B7280;
+  margin-top: 8px;
+  margin-bottom: 20px;
 }
 
-@keyframes slideIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
+.investher-content {
+  padding: 0 24px 24px 24px;
+}
+
+/* Alternatives List */
+.investher-alt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.investher-alt-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #FFFFFF;
+  border: 2px solid #F9A8D4; /* Pink border */
+  border-radius: 12px;
+  transition: transform 0.2s;
+}
+
+.investher-alt-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(249, 168, 212, 0.2);
+}
+
+.investher-alt-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+
+.investher-alt-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #000000;
+  line-height: 1.4;
+}
+
+/* Pros/Cons Grid */
+.investher-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.investher-card {
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  padding: 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+
+.investher-card-icon-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  font-size: 20px;
+}
+
+.investher-icon-pink {
+  background: #FCE7F3;
+  color: #DB2777;
+}
+
+.investher-icon-red {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+.investher-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #000000;
+}
+
+.investher-card-text {
+  font-size: 12px;
+  color: #4B5563;
+  line-height: 1.4;
+}
+
+/* Actions */
+.investher-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.investher-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  border: none;
+}
+
+.investher-btn-primary {
+  background: #F472B6; /* Pink button */
+  color: white;
+  box-shadow: 0 4px 12px rgba(244, 114, 182, 0.3);
+}
+
+.investher-btn-primary:hover {
+  background: #EC4899;
+  transform: translateY(-1px);
+}
+
+.investher-btn-secondary {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  color: #000000;
+}
+
+.investher-btn-secondary:hover {
+  background: #F9FAFB;
+  border-color: #D1D5DB;
+}
+
+/* Loading State */
+.investher-loading {
+  padding: 40px;
+  text-align: center;
+  color: #6B7280;
+}
+
+.investher-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #E5E7EB;
+  border-top-color: #F472B6;
+  border-radius: 50%;
+  animation: investher-spin 1s linear infinite;
+  margin: 0 auto 16px auto;
+}
+
+@keyframes investher-spin {
+  to { transform: rotate(360deg); }
+}
+
+.investher-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.investher-close-btn:hover {
+  color: #4B5563;
+}

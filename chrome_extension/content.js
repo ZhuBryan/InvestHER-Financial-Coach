@@ -1,227 +1,260 @@
-const API_URL = "http://localhost:8000";
+// InvestHer Content Script
 
-// Keywords to detect shopping pages
-const SHOPPING_KEYWORDS = ["cart", "checkout", "basket", "buy"];
+// --- Configuration ---
+const SUPABASE_FUNCTION_URL = "https://tyjbjqflvjwdqjvwqjvw.supabase.co/functions/v1/generate-coaching";
+const USER_ID = "user_123"; // Mock user ID
 
-// Helper to call Supabase Edge Function
-async function callCoachingFunction(itemName, price, description) {
-    if (!CONFIG.SUPABASE_FUNCTION_URL) {
-        console.error("InvestHer: Missing SUPABASE_FUNCTION_URL in config.js");
-        return { message: "Save your money!", audio: null };
-    }
+// --- State ---
+let isPopupOpen = false;
 
-    try {
-        const res = await fetch(CONFIG.SUPABASE_FUNCTION_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`
-            },
-            body: JSON.stringify({
-                item_name: itemName,
-                price: price,
-                description: description,
-                user_id: "test_user_123" // Replace with real user ID when auth is ready
-            })
-        });
-
-        if (!res.ok) throw new Error(`Function Error: ${res.statusText}`);
-        return await res.json();
-    } catch (e) {
-        console.error("InvestHer Edge Function Error:", e);
-        return { message: "Think about your financial freedom!", audio: null };
-    }
+// --- Helper Functions ---
+function formatCurrency(amount) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount);
 }
 
-function parsePrice(text) {
-    if (!text) return 0;
-    // Matches $10.99, 10.99 USD, $ 10.99, 100.00, 1,200.50
-    // Updated to be more flexible with optional decimals and currency codes
-    const match = text.match(/(\$?\s*[\d,]+(\.\d{2})?)/);
-    if (match) {
-        return parseFloat(match[0].replace(/[^0-9.]/g, ''));
-    }
-    return 0;
+function calculateAlternatives(price) {
+  const coffeePrice = 6;
+  const groceryWeekPrice = 100;
+  
+  const numCoffees = Math.floor(price / coffeePrice);
+  const numGroceries = (price / groceryWeekPrice).toFixed(1);
+  
+  return [
+    `${numCoffees} fancy coffees with friends`,
+    `${numGroceries} weeks of groceries`,
+    "Extra payment toward your goals"
+  ];
 }
 
-function getPagePrice() {
-    console.log("InvestHer: Starting smart price detection...");
+// --- UI Generation ---
+function createCoachPopup(productName, price) {
+  if (isPopupOpen) return;
+  isPopupOpen = true;
 
-    // 1. Amazon Specifics (High Accuracy)
-    const amazonSubtotal = document.querySelector('#sc-subtotal-amount-activecart span, #sc-subtotal-amount-buybox span');
-    if (amazonSubtotal) {
-        console.log("InvestHer: Found Amazon Subtotal");
-        return parsePrice(amazonSubtotal.innerText);
-    }
-
-    // 2. Uniqlo Specifics (and other modern sites)
-    // Look for elements with "total" in class or id
-    const totalElements = document.querySelectorAll('[class*="total"], [id*="total"], [data-test*="total"]');
-    let specificTotal = 0;
-    totalElements.forEach(el => {
-        // We only want leaf nodes or nodes with direct text
-        const price = parsePrice(el.innerText);
-        if (price > specificTotal && price < 100000) { // Sanity check
-             console.log(`InvestHer: Found specific total candidate: ${price} in .${el.className}`);
-             specificTotal = price;
-        }
-    });
-    if (specificTotal > 0) return specificTotal;
-
-    // 3. "Total" Keyword Search (Generic)
-    // We look for visible elements containing "Total" or "Subtotal" and a price
-    const allElements = document.body.getElementsByTagName("*");
-    let bestPrice = 0;
-    let maxPriceFound = 0;
-
-    for (let el of allElements) {
-        // Skip hidden or script tags
-        if (["SCRIPT", "STYLE", "NOSCRIPT", "SVG", "PATH"].includes(el.tagName)) continue;
-        if (el.offsetParent === null) continue; // Check visibility
-        if (el.children.length > 0) continue;   // Only check leaf nodes (text)
-
-        const text = el.innerText;
-        if (!text) continue;
-
-        const price = parsePrice(text);
-        if (price > 0) {
-            if (price > maxPriceFound) maxPriceFound = price;
-
-            // Check context (parent text) for "Total"
-            const parentText = el.parentElement ? el.parentElement.innerText.toLowerCase() : "";
-            if (parentText.includes("total") || parentText.includes("subtotal") || parentText.includes("order summary")) {
-                console.log(`InvestHer: Candidate Price $${price} found near 'Total'`);
-                // We assume the "Total" is likely the highest value labeled "Total" (ignoring discounts)
-                if (price > bestPrice) bestPrice = price;
-            }
-        }
-    }
-
-    if (bestPrice > 0) return bestPrice;
-
-    // 4. Fallback: Meta Tag
-    const metaPrice = document.querySelector('meta[property="og:price:amount"]');
-    if (metaPrice) return parseFloat(metaPrice.content);
-
-    // 5. Last Resort: Max Price found (if reasonable)
-    console.log("InvestHer: No 'Total' label found. Defaulting to Max Price:", maxPriceFound);
-    return maxPriceFound;
-}
-
-async function createCoachPopup(price) {
-    if (document.getElementById('investher-overlay')) return;
-
-    // Try to get item name from Meta Title or Page Title
-    const metaTitle = document.querySelector('meta[property="og:title"]');
-    let itemName = metaTitle ? metaTitle.content : document.title;
+  // Create Overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'investher-popup-overlay';
+  
+  // Create Container
+  const container = document.createElement('div');
+  container.id = 'investher-popup-container';
+  
+  // Initial State (Immediate Show with Loading placeholders)
+  container.innerHTML = `
+    <button class="investher-close-btn" id="investher-close-x">×</button>
+    <div class="investher-header">
+      <h1 class="investher-title">Before You Buy</h1>
+      <div class="investher-price">${formatCurrency(price)}</div>
+      <div class="investher-subtitle">Could be used for...</div>
+    </div>
     
-    // Clean up item name (remove site names like "| UNIQLO", "- Amazon", etc.)
-    itemName = itemName.split('|')[0].split('-')[0].trim();
-    itemName = itemName.substring(0, 40); // Limit length
+    <div class="investher-content">
+      <!-- Loading State for Content -->
+      <div id="investher-loading-state" class="investher-loading">
+        <div class="investher-spinner"></div>
+        <div>Finding better alternatives...</div>
+      </div>
 
-    // Get item description for better context
-    const metaDesc = document.querySelector('meta[name="description"]') || document.querySelector('meta[property="og:description"]');
-    let itemDesc = metaDesc ? metaDesc.content : "";
-    itemDesc = itemDesc.substring(0, 150); // Limit length
+      <!-- Content (Hidden initially) -->
+      <div id="investher-loaded-content" style="display: none;">
+        <div class="investher-alt-list" id="investher-alt-list">
+          <!-- Alternatives will be injected here -->
+        </div>
 
-    // 1. Show "Thinking" State
-    const overlay = document.createElement('div');
-    overlay.id = 'investher-overlay';
-    overlay.innerHTML = `
-        <div class="ih-card">
-            <div class="ih-header">🤖 Analyzing...</div>
-            <div class="ih-content">Thinking about your wallet...</div>
-        </div>`;
-    document.body.appendChild(overlay);
+        <div class="investher-grid">
+          <div class="investher-card">
+            <div class="investher-card-icon-circle investher-icon-pink">✨</div>
+            <div class="investher-card-title">Pros</div>
+            <div class="investher-card-text" id="investher-pro-text">You'll feel great wearing this</div>
+          </div>
+          <div class="investher-card">
+            <div class="investher-card-icon-circle investher-icon-red">📉</div>
+            <div class="investher-card-title">Cons</div>
+            <div class="investher-card-text" id="investher-con-text">Do you really need it right now?</div>
+          </div>
+        </div>
 
-    try {
-        // 2. Call Edge Function (Handles DB, Gemini, and ElevenLabs)
-        const data = await callCoachingFunction(itemName, price, itemDesc);
-        const aiMessage = data.message || "Think about your financial freedom!";
-        
-        // 3. Audio Logic
-        let audioUrl = null;
-        if (data.audio) {
-            // Convert Base64 to Blob URL
-            const binaryString = atob(data.audio);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-            const blob = new Blob([bytes], { type: 'audio/mpeg' });
-            audioUrl = URL.createObjectURL(blob);
-        }
+        <div class="investher-actions">
+          <button id="investher-save-btn" class="investher-btn investher-btn-primary">
+            Commit to Savings
+          </button>
+          <button id="investher-buy-btn" class="investher-btn investher-btn-secondary">
+            Continue Payment
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  overlay.appendChild(container);
+  document.body.appendChild(overlay);
 
-        // 4. Calculate Projection
-        const futureVal = (price * (1.07 ** 10)).toFixed(2);
+  // Close Handlers
+  const close = () => {
+    overlay.remove();
+    isPopupOpen = false;
+    // Prevent re-opening in this session
+    sessionStorage.setItem('investher_dismissed', 'true');
+  };
+  
+  document.getElementById('investher-close-x').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
 
-        // 5. Update UI
-        overlay.innerHTML = `
-            <div class="ih-card">
-                <div class="ih-header">
-                    <span>👩‍💼 InvestHer Coach</span>
-                    <button id="ih-close">×</button>
-                </div>
-                <div class="ih-content">
-                    <p class="ih-alert">Wait! You're spending <strong>$${price}</strong>.</p>
-                    
-                    <div class="ih-ai-box">
-                        <button id="ih-speak" style="${audioUrl ? '' : 'display:none'}">🔊</button>
-                        <p>"${aiMessage}"</p>
-                    </div>
+  // Fetch Coaching Data
+  fetch(SUPABASE_FUNCTION_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      item_name: productName, 
+      price: price, 
+      description: "Online shopping item",
+      user_id: USER_ID 
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    // Hide Loading, Show Content
+    document.getElementById('investher-loading-state').style.display = 'none';
+    document.getElementById('investher-loaded-content').style.display = 'block';
 
-                    <p class="ih-stat">In 10 years this could be: <strong>$${futureVal}</strong></p>
-                    
-                    <div class="ih-actions">
-                        <button id="ih-invest">Invest Instead</button>
-                        <button id="ih-buy">Buy Anyway</button>
-                    </div>
-                </div>
-            </div>
-        `;
+    // Populate Alternatives
+    const altList = document.getElementById('investher-alt-list');
+    const icons = ['☕', '🛒', '💰']; // Coffee, Cart, Money Bag
+    
+    const alternatives = data.alternatives || calculateAlternatives(price);
 
-        // 6. Event Listeners
-        document.getElementById('ih-close').addEventListener('click', () => overlay.remove());
-        document.getElementById('ih-buy').addEventListener('click', () => overlay.remove());
-        
-        if (audioUrl) {
-            const audio = new Audio(audioUrl);
-            document.getElementById('ih-speak').addEventListener('click', () => audio.play());
-        }
-        
-        document.getElementById('ih-invest').addEventListener('click', () => {
-            // We still try to log to the backend if available
-            fetch(`${API_URL}/add-savings`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ item_name: itemName, amount: price })
-            }).catch(e => console.log("Backend offline, could not save."));
-            
-            window.open('http://localhost:8501', '_blank'); // Open Dashboard
-            overlay.remove();
-        });
+    altList.innerHTML = alternatives.slice(0, 3).map((alt, index) => `
+      <div class="investher-alt-item">
+        <div class="investher-alt-icon">${icons[index] || ''}</div>
+        <div class="investher-alt-text">${alt}</div>
+      </div>
+    `).join('');
 
-    } catch (err) {
-        console.error(err);
-        overlay.remove();
+    // Populate Pros/Cons
+    if (data.pro) document.getElementById('investher-pro-text').innerText = data.pro;
+    if (data.con) document.getElementById('investher-con-text').innerText = data.con;
+
+    // Button Handlers
+    document.getElementById('investher-save-btn').addEventListener('click', () => {
+      // TODO: Save logic
+      close();
+      chrome.runtime.sendMessage({ action: "closeTab" });
+    });
+
+    document.getElementById('investher-buy-btn').addEventListener('click', close);
+
+  })
+  .catch(err => {
+    console.error("InvestHer Error:", err);
+    // Show default content on error
+    document.getElementById('investher-loading-state').style.display = 'none';
+    document.getElementById('investher-loaded-content').style.display = 'block';
+    
+    // Populate with defaults
+    const altList = document.getElementById('investher-alt-list');
+    const defaults = calculateAlternatives(price);
+    
+    altList.innerHTML = `
+      <div class="investher-alt-item">
+        <div class="investher-alt-icon">☕</div>
+        <div class="investher-alt-text">${defaults[0]}</div>
+      </div>
+      <div class="investher-alt-item">
+        <div class="investher-alt-icon">🛒</div>
+        <div class="investher-alt-text">${defaults[1]}</div>
+      </div>
+      <div class="investher-alt-item">
+        <div class="investher-alt-icon">💰</div>
+        <div class="investher-alt-text">${defaults[2]}</div>
+      </div>
+    `;
+    
+    document.getElementById('investher-save-btn').addEventListener('click', () => {
+      close();
+      chrome.runtime.sendMessage({ action: "closeTab" });
+    });
+    document.getElementById('investher-buy-btn').addEventListener('click', close);
+  });
+}
+
+// --- Detection Logic ---
+function detectProduct() {
+  // Check if already dismissed in this session
+  if (sessionStorage.getItem('investher_dismissed') === 'true') return;
+  
+  // Prevent multiple popups
+  if (document.getElementById('investher-popup-overlay')) return;
+
+  // 1. Check for Cart Totals first (Higher priority)
+  const totalSelectors = [
+    '.sc-subtotal-amount-activecart', // Amazon Cart
+    '.cart-total .price', // Shopify
+    '.order-total .value',
+    '[data-test-id="TOTAL"]',
+    '.summary-total .price'
+  ];
+
+  let price = 0;
+  let title = "Your Cart";
+
+  for (const selector of totalSelectors) {
+    const el = document.querySelector(selector);
+    if (el) {
+      const text = el.innerText.replace(/[^0-9.]/g, '');
+      const p = parseFloat(text);
+      if (!isNaN(p) && p > 0) {
+        price = p;
+        console.log("InvestHer: Detected Cart Total", price);
+        break;
+      }
     }
-}
+  }
 
-// Trigger Logic
-const url = window.location.href.toLowerCase();
-console.log("InvestHer: Checking URL...", url);
+  // 2. If no cart total, check for single product price
+  if (price === 0) {
+    const priceSelectors = [
+      '.a-price .a-offscreen', // Amazon Product
+      '.price',
+      '[itemprop="price"]',
+      '.product-price',
+      '.price-box__price'
+    ];
 
-if (SHOPPING_KEYWORDS.some(k => url.includes(k))) {
-    console.log("InvestHer: Shopping keyword detected!");
-    setTimeout(() => {
-        const price = getPagePrice();
-        console.log("InvestHer: Detected Price:", price);
-        if (price > 0) {
-            createCoachPopup(price);
-        } else {
-            console.log("InvestHer: No price found. Popup skipped.");
+    for (const selector of priceSelectors) {
+      const el = document.querySelector(selector);
+      if (el) {
+        const text = el.innerText.replace(/[^0-9.]/g, '');
+        const p = parseFloat(text);
+        if (!isNaN(p) && p > 0) {
+          price = p;
+          
+          // Try to find title
+          const titleSelectors = ['#productTitle', 'h1', '.product-title'];
+          for (const tSel of titleSelectors) {
+            const tEl = document.querySelector(tSel);
+            if (tEl) {
+              title = tEl.innerText.trim();
+              break;
+            }
+          }
+          
+          console.log("InvestHer: Detected Product Price", price);
+          break;
         }
-    }, 3000); // Increased to 3s to allow load
-} else {
-    console.log("InvestHer: No shopping keywords found in URL.");
+      }
+    }
+  }
+
+  if (price > 0) {
+    // IMMEDIATE POPUP
+    createCoachPopup(title, price);
+  }
 }
+
+// Run detection immediately and then check again shortly after for dynamic content
+detectProduct();
+// Check a few times for dynamic SPAs
+setTimeout(detectProduct, 2000);
+setTimeout(detectProduct, 5000);
