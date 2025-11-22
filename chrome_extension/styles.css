@@ -1,0 +1,79 @@
+#investher-overlay {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999999;
+    font-family: sans-serif;
+}
+
+.ih-card {
+    background: white;
+    width: 320px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    overflow: hidden;
+    border: 2px solid #6C63FF;
+    animation: slideIn 0.5s ease;
+}
+
+.ih-header {
+    background: #6C63FF;
+    color: white;
+    padding: 12px;
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+}
+
+#ih-close { background: none; border: none; color: white; cursor: pointer; font-size: 18px; }
+
+.ih-content { padding: 15px; color: #333; }
+
+.ih-alert { font-size: 15px; margin-bottom: 10px; }
+
+.ih-ai-box {
+    background: #f0f0ff;
+    padding: 10px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.ih-ai-box p { font-style: italic; font-size: 13px; margin: 0; color: #6C63FF; }
+
+#ih-speak {
+    background: white;
+    border: 1px solid #6C63FF;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+}
+
+.ih-stat { font-size: 13px; color: #555; margin-bottom: 15px; }
+
+.ih-actions { display: flex; gap: 10px; }
+
+#ih-invest {
+    flex: 1;
+    background: #6C63FF;
+    color: white;
+    border: none;
+    padding: 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+#ih-buy {
+    flex: 1;
+    background: white;
+    border: 1px solid #ccc;
+    padding: 8px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+@keyframes slideIn { from { transform: translateX(120%); } to { transform: translateX(0); } }

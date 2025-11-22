@@ -1,23 +1,12 @@
-# --- Core Backend (FastAPI) ---
 fastapi
 uvicorn
-python-multipart    # Required for uploading audio files to your backend
-
-# --- Environment Variables ---
 python-dotenv
-
-# --- AI & Machine Learning ---
-google-genai        # For Gemini 1.5 Flash
-elevenlabs          # Official library for the Voice Coach
-
-# --- Finance & Math ---
-yfinance            # Gets the ETF/Stock growth data
-pandas              # Handles the data tables
-numpy               # Handles the compound interest math
-
-# --- Dashboard (Streamlit) ---
+google-genai
+elevenlabs
+yfinance
+pandas
+numpy
 streamlit
-plotly              # Creates the interactive growth graphs
-
-# --- Utilities ---
-requests            # For making API calls to Presage
+plotly
+requests
+pydantic
