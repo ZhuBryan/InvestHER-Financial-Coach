@@ -3,6 +3,36 @@ const API_URL = "http://localhost:8000";
 // Keywords to detect shopping pages
 const SHOPPING_KEYWORDS = ["cart", "checkout", "basket", "buy"];
 
+// Helper to call Supabase Edge Function
+async function callCoachingFunction(itemName, price, description) {
+    if (!CONFIG.SUPABASE_FUNCTION_URL) {
+        console.error("InvestHer: Missing SUPABASE_FUNCTION_URL in config.js");
+        return { message: "Save your money!", audio: null };
+    }
+
+    try {
+        const res = await fetch(CONFIG.SUPABASE_FUNCTION_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`
+            },
+            body: JSON.stringify({
+                item_name: itemName,
+                price: price,
+                description: description,
+                user_id: "test_user_123" // Replace with real user ID when auth is ready
+            })
+        });
+
+        if (!res.ok) throw new Error(`Function Error: ${res.statusText}`);
+        return await res.json();
+    } catch (e) {
+        console.error("InvestHer Edge Function Error:", e);
+        return { message: "Think about your financial freedom!", audio: null };
+    }
+}
+
 function parsePrice(text) {
     if (!text) return 0;
     // Matches $10.99, 10.99 USD, $ 10.99, 100.00, 1,200.50
@@ -84,7 +114,15 @@ async function createCoachPopup(price) {
     // Try to get item name from Meta Title or Page Title
     const metaTitle = document.querySelector('meta[property="og:title"]');
     let itemName = metaTitle ? metaTitle.content : document.title;
-    itemName = itemName.split(':')[0].substring(0, 40);
+    
+    // Clean up item name (remove site names like "| UNIQLO", "- Amazon", etc.)
+    itemName = itemName.split('|')[0].split('-')[0].trim();
+    itemName = itemName.substring(0, 40); // Limit length
+
+    // Get item description for better context
+    const metaDesc = document.querySelector('meta[name="description"]') || document.querySelector('meta[property="og:description"]');
+    let itemDesc = metaDesc ? metaDesc.content : "";
+    itemDesc = itemDesc.substring(0, 150); // Limit length
 
     // 1. Show "Thinking" State
     const overlay = document.createElement('div');
@@ -97,18 +135,27 @@ async function createCoachPopup(price) {
     document.body.appendChild(overlay);
 
     try {
-        // 2. Get AI Data
-        const res = await fetch(`${API_URL}/generate-coaching`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ item_name: itemName, price: price })
-        });
-        const data = await res.json();
+        // 2. Call Edge Function (Handles DB, Gemini, and ElevenLabs)
+        const data = await callCoachingFunction(itemName, price, itemDesc);
+        const aiMessage = data.message || "Think about your financial freedom!";
+        
+        // 3. Audio Logic
+        let audioUrl = null;
+        if (data.audio) {
+            // Convert Base64 to Blob URL
+            const binaryString = atob(data.audio);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const blob = new Blob([bytes], { type: 'audio/mpeg' });
+            audioUrl = URL.createObjectURL(blob);
+        }
 
-        // 3. Calculate Projection
+        // 4. Calculate Projection
         const futureVal = (price * (1.07 ** 10)).toFixed(2);
 
-        // 4. Update UI
+        // 5. Update UI
         overlay.innerHTML = `
             <div class="ih-card">
                 <div class="ih-header">
@@ -119,8 +166,8 @@ async function createCoachPopup(price) {
                     <p class="ih-alert">Wait! You're spending <strong>$${price}</strong>.</p>
                     
                     <div class="ih-ai-box">
-                        <button id="ih-speak">🔊</button>
-                        <p>"${data.message}"</p>
+                        <button id="ih-speak" style="${audioUrl ? '' : 'display:none'}">🔊</button>
+                        <p>"${aiMessage}"</p>
                     </div>
 
                     <p class="ih-stat">In 10 years this could be: <strong>$${futureVal}</strong></p>
@@ -133,26 +180,26 @@ async function createCoachPopup(price) {
             </div>
         `;
 
-        // 5. Event Listeners
+        // 6. Event Listeners
         document.getElementById('ih-close').addEventListener('click', () => overlay.remove());
         document.getElementById('ih-buy').addEventListener('click', () => overlay.remove());
         
+        if (audioUrl) {
+            const audio = new Audio(audioUrl);
+            document.getElementById('ih-speak').addEventListener('click', () => audio.play());
+        }
+        
         document.getElementById('ih-invest').addEventListener('click', () => {
+            // We still try to log to the backend if available
             fetch(`${API_URL}/add-savings`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ item_name: itemName, amount: price })
-            });
+            }).catch(e => console.log("Backend offline, could not save."));
+            
             window.open('http://localhost:8501', '_blank'); // Open Dashboard
             overlay.remove();
         });
-
-        // 6. Audio Logic
-        if (data.audio) {
-            const audio = new Audio("data:audio/mp3;base64," + data.audio);
-            audio.play().catch(() => console.log("Autoplay blocked"));
-            document.getElementById('ih-speak').addEventListener('click', () => audio.play());
-        }
 
     } catch (err) {
         console.error(err);

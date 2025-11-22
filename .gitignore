@@ -12,3 +12,6 @@ Thumbs.db
 # Node
 node_modules/
 
+# Chrome Extension Secrets
+chrome_extension/config.js
+
