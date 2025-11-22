@@ -183,7 +183,7 @@ function calculateLoanPayoff(
 }
 
 export function InvestmentDashboard() {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const [selectedTicker, setSelectedTicker] = useState<ETFTicker>('VDY');
   const [showTickerDropdown, setShowTickerDropdown] = useState(false);
   const [isGainsCardExpanded, setIsGainsCardExpanded] = useState(false);
@@ -298,7 +298,9 @@ export function InvestmentDashboard() {
             <span className="text-sm font-medium">Logout</span>
           </button>
 
-          <h1 className="text-center mb-4 text-white text-[32px] font-bold">InvestHer</h1>
+          <h1 className="text-center mb-4 text-white text-[32px] font-bold">
+            Welcome back, {user?.user_metadata?.full_name?.split(' ')[0] || 'Investor'}
+          </h1>
           <div className="text-center max-w-2xl mx-auto">
             <p className="text-sm text-white/80 mb-3">
               Every time you skip an impulse purchase while shopping online, track it here.
