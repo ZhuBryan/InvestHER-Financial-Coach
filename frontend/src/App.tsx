@@ -1,8 +1,16 @@
 import { useState } from 'react';
 import { InvestmentDashboard } from './components/InvestmentDashboard';
 import Aurora from './components/Aurora';
+import { useAuth } from './context/AuthContext';
+import AuthPage from './pages/AuthPage';
 
 export default function App() {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <AuthPage />;
+  }
+
   return (
     <div className="min-h-screen bg-[#2D2D2D] relative">
       {/* Animated Aurora background */}

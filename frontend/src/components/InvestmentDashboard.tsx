@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
-import { TrendingUp, Calendar, DollarSign, Target, ChevronDown, Info, Zap, ChevronUp, CreditCard, AlertCircle } from 'lucide-react';
+import { TrendingUp, Calendar, DollarSign, Target, ChevronDown, Info, Zap, ChevronUp, CreditCard, AlertCircle, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 // Mock savings history data
 interface SavingsItem {
@@ -182,6 +183,7 @@ function calculateLoanPayoff(
 }
 
 export function InvestmentDashboard() {
+  const { signOut } = useAuth();
   const [selectedTicker, setSelectedTicker] = useState<ETFTicker>('VDY');
   const [showTickerDropdown, setShowTickerDropdown] = useState(false);
   const [isGainsCardExpanded, setIsGainsCardExpanded] = useState(false);
@@ -286,11 +288,20 @@ export function InvestmentDashboard() {
     <div className="min-h-screen px-12 py-8">{/* removed bg-[#f8f9fa] */}
       {/* Header */}
       <div className="max-w-[1400px] mx-auto mb-8">
-        <div className="bg-[#2D2D2D]/90 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
+        <div className="bg-[#2D2D2D]/90 backdrop-blur-xl rounded-3xl p-8 border border-white/10 relative">
+          {/* Logout Button */}
+          <button
+            onClick={() => signOut()}
+            className="absolute top-6 right-6 flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/15 text-white/80 hover:text-white rounded-xl transition-all duration-300 hover:scale-105 border border-white/10"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="text-sm font-medium">Logout</span>
+          </button>
+
           <h1 className="text-center mb-4 text-white text-[32px] font-bold">InvestHer</h1>
           <div className="text-center max-w-2xl mx-auto">
             <p className="text-sm text-white/80 mb-3">
-              Every time you skip an impulse purchase while shopping online, track it here. 
+              Every time you skip an impulse purchase while shopping online, track it here.
               See how that money <span className="text-[#FF88B7] font-medium">could have grown</span> if you had invested it instead!
             </p>
             <div className="flex items-center justify-center gap-2 text-xs text-white/60 bg-white/5 px-4 py-2 rounded-full inline-flex border border-white/10">
