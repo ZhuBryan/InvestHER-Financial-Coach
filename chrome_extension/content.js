@@ -1,11 +1,66 @@
 // InvestHer Content Script
 
 // --- Configuration ---
-const SUPABASE_FUNCTION_URL = "https://tyjbjqflvjwdqjvwqjvw.supabase.co/functions/v1/generate-coaching";
-const USER_ID = "user_123"; // Mock user ID
+// Use values from config.js if available, otherwise fallback (but ensure fallback is correct)
+const PROJECT_REF = "paxhkncmathdqqnnvgtb"; 
+const SUPABASE_FUNCTION_URL = `https://${PROJECT_REF}.supabase.co/functions/v1/generate-coaching`;
+const SUPABASE_LOG_URL = `https://${PROJECT_REF}.supabase.co/functions/v1/log-purchase`;
+// const USER_ID = "user_123"; // Removed hardcoded ID
 
 // --- State ---
 let isPopupOpen = false;
+let currentMetadata = null; // Store extracted metadata from Gemini
+let currentUserId = null; 
+
+// Initialize user ID from storage
+chrome.storage.local.get(['user'], (result) => {
+  if (result.user) {
+    currentUserId = result.user.id;
+  }
+});
+
+// --- Session Sync Logic ---
+
+function checkDashboardSession() {
+  // Only run on the dashboard URL (localhost ports)
+  if (window.location.hostname === 'localhost' && ['3000', '3001', '5173'].includes(window.location.port)) {
+    console.log("InvestHer: Checking for dashboard session...");
+    
+    // Supabase stores session in localStorage with key: sb-<project-ref>-auth-token
+    const sessionKey = `sb-${PROJECT_REF}-auth-token`;
+    const sessionStr = localStorage.getItem(sessionKey);
+
+    if (sessionStr) {
+      try {
+        const session = JSON.parse(sessionStr);
+        if (session && session.access_token && session.user) {
+          console.log("InvestHer: Found session, syncing to extension...");
+          currentUserId = session.user.id;
+          chrome.runtime.sendMessage({
+            type: "SYNC_SESSION",
+            session: {
+              access_token: session.access_token,
+              refresh_token: session.refresh_token,
+              user: session.user
+            }
+          });
+        }
+      } catch (e) {
+        console.error("InvestHer: Failed to parse session", e);
+      }
+    }
+  }
+}
+
+// Run session check immediately
+checkDashboardSession();
+
+// Also listen for storage changes (in case user logs in while tab is open)
+window.addEventListener('storage', (e) => {
+  if (e.key && e.key.includes('auth-token')) {
+    checkDashboardSession();
+  }
+});
 
 // --- Helper Functions ---
 function formatCurrency(amount) {
@@ -110,7 +165,7 @@ function createCoachPopup(productName, price) {
       item_name: productName, 
       price: price, 
       description: "Online shopping item",
-      user_id: USER_ID 
+      user_id: currentUserId 
     })
   })
   .then(res => res.json())
