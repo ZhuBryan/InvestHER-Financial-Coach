@@ -228,7 +228,7 @@ async function createCoachPopup(productName, price) {
   container.id = 'investher-popup-container';
 
   // Initial State (Immediate Show with Loading placeholders)
-  const logoUrl = chrome.runtime.getURL('logo.png');
+  const logoUrl = chrome.runtime.getURL('InvestHer_-_Logo_1.png');
   container.innerHTML = `
     <button class="investher-close-btn" id="investher-close-x">×</button>
     <div class="investher-header">

@@ -2,10 +2,20 @@
   "manifest_version": 3,
   "name": "InvestHer",
   "version": "1.0",
+  "icons": {
+    "16": "InvestHer_-_Logo_1.png",
+    "48": "InvestHer_-_Logo_1.png",
+    "128": "InvestHer_-_Logo_1.png"
+  },
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": ["<all_urls>"],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "InvestHer_-_Logo_1.png",
+      "48": "InvestHer_-_Logo_1.png",
+      "128": "InvestHer_-_Logo_1.png"
+    }
   },
   "background": {
     "service_worker": "background.js"
@@ -19,7 +29,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["logo.png"],
+      "resources": ["logo.png", "InvestHer_-_Logo_1.png"],
       "matches": ["<all_urls>"]
     }
   ]
