@@ -1,7 +1,18 @@
 import { useState, useMemo } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
-import { TrendingUp, Calendar, DollarSign, Target, ChevronDown, Info, Zap, ChevronUp, CreditCard, AlertCircle, LogOut, ArrowLeft } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area } from 'recharts';
+import { TrendingUp, Calendar, DollarSign, Target, ChevronDown, Info, Zap, ChevronUp, LogOut, ArrowLeft } from 'lucide-react';
+
+// Mock Auth Context for standalone usage
+const useAuth = () => {
+  return {
+    user: {
+      user_metadata: {
+        full_name: 'Demo User'
+      }
+    },
+    signOut: () => console.log('Signing out...')
+  };
+};
 
 // Mock savings history data
 interface SavingsItem {
@@ -667,7 +678,7 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
 
             <div className="h-[320px] -mx-2">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={etfData}>
+                <ComposedChart data={etfData}>
                   <defs>
                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#FF88B7" stopOpacity={0.3}/>
@@ -716,7 +727,7 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
                     strokeDasharray="5 5"
                     dot={false}
                   />
-                </AreaChart>
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
 
