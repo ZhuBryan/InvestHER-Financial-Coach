@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
-import { supabase } from '../supabaseClient'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Checkbox } from '../components/ui/checkbox'
 import { Label } from '../components/ui/label'
+import { User, Mail as MailIcon, Globe, Apple } from 'lucide-react'
 import Aurora from '../components/Aurora'
+
 
 export default function AuthPage() {
   const { signUp, signIn } = useAuth()
@@ -17,20 +18,6 @@ export default function AuthPage() {
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const handleGoogleLogin = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}`,
-        },
-      })
-      if (error) throw error
-    } catch (err: any) {
-      setError(err.message || 'An error occurred with Google login')
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,7 +64,7 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#2D2D2D] relative flex items-center justify-center px-8 py-16 overflow-hidden">
+    <div className="min-h-screen bg-[#2D2D2D] relative flex items-center justify-center px-[30px] py-16 overflow-hidden">
       {/* Animated Aurora background */}
       <div className="fixed inset-0 z-0 opacity-40">
         <Aurora
@@ -101,10 +88,12 @@ export default function AuthPage() {
           transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
           className="text-center space-y-4"
         >
-          <h1 className="text-8xl md:text-9xl font-bold text-white tracking-tight drop-shadow-lg">
+          <img src="/logo.svg" alt="description" className="mx-auto py-3"/>
+
+          <h1 className="text-[32px] md:text-9xl mb-8 font-bold text-white tracking-tight drop-shadow-lg">
             InvestHer
           </h1>
-          <p className="text-lg text-white font-light">
+          <p className="text-xl text-white font-light">
             Your personalized path to financial confidence
           </p>
         </motion.div>
@@ -117,42 +106,48 @@ export default function AuthPage() {
           onSubmit={handleSubmit}
           className="space-y-6 w-full"
         >
-          <div className="flex flex-col gap-4 w-full max-w-xs mx-auto">
-            <AnimatePresence mode="popLayout">
-              {isSignUp && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <Input
-                    type="text"
-                    placeholder="Full Name"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="h-16 px-8 bg-white text-gray-900 placeholder:text-gray-500 border-0 rounded-3xl shadow-xl focus:shadow-2xl focus:ring-2 focus:ring-[#FF88B7]/40 transition-all duration-300 text-base"
-                    required
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-            <Input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="h-16 px-8 bg-white text-gray-900 placeholder:text-gray-500 border-0 rounded-3xl shadow-xl focus:shadow-2xl focus:ring-2 focus:ring-[#FF88B7]/40 transition-all duration-300 text-base"
-              required
-            />
-            <Input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="h-16 px-8 bg-white text-gray-900 placeholder:text-gray-500 border-0 rounded-3xl shadow-xl focus:shadow-2xl focus:ring-2 focus:ring-[#FF88B7]/40 transition-all duration-300 text-base"
-              required
-            />
+          <div className="flex-col">
+            <div className="flex justify-center">
+              <AnimatePresence mode="popLayout">
+                {isSignUp && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Input
+                      type="text"
+                      placeholder="Full Name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="w-64 h-16 px-12 py-2 mb-3 mt-4 bg-white text-gray-900 placeholder:text-gray-500 border-0 rounded-3xl shadow-xl focus:shadow-2xl focus:ring-2 focus:ring-[#FF88B7]/40 transition-all duration-300 text-base"
+                      required
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            <div className="flex justify-center">
+              <Input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-64 h-16 px-12 py-2 mb-3 bg-white text-gray-900 placeholder:text-gray-500 border-0 rounded-3xl shadow-xl focus:shadow-2xl focus:ring-2 focus:ring-[#FF88B7]/40 transition-all duration-300 text-base"
+                required
+              />
+            </div>
+            <div className="flex justify-center">
+              <Input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-64 h-16 px-12 py-2 mb-3 bg-white text-gray-900 placeholder:text-gray-500-left border-0 rounded-3xl shadow-xl focus:shadow-2xl focus:ring-2 focus:ring-[#FF88B7]/40 transition-all duration-300 text-base"
+                required
+              />
+            </div>
           </div>
 
           {/* Terms Checkbox - Only for Sign Up - 8px spacing */}
@@ -164,12 +159,12 @@ export default function AuthPage() {
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <div className="flex items-center gap-3 px-1 max-w-xs mx-auto pt-2">
+                <div className="flex items-center gap-3 px-1 pt-2 justify-center">
                   <Checkbox
                     id="terms"
                     checked={agreedToTerms}
                     onCheckedChange={(checked: boolean | string) => setAgreedToTerms(checked as boolean)}
-                    className="h-6 w-6 border-2 border-white data-[state=checked]:bg-white data-[state=checked]:text-[#7B61FF] data-[state=checked]:border-white"
+                    className="h-5 w-5 border-2 border-white bg-white data-[state=checked]:bg-white data-[state=checked]:text-[#7B61FF] data-[state=checked]:border-white"
                   />
                   <Label
                     htmlFor="terms"
@@ -189,10 +184,10 @@ export default function AuthPage() {
           )}
 
           {/* Submit Button - 8px spacing */}
-          <div className="pt-2 max-w-xs mx-auto">
+          <div className="pt-2 flex justify-center">
             <Button
               type="submit"
-              className="w-full h-16 bg-gradient-to-r from-[#7B61FF] to-[#9B83FF] hover:from-[#6A51E0] hover:to-[#8A72EF] text-white font-bold text-base rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+              className="py-3 margin-bottom bg-[#FF88B7] hover:bg-[#FF6FA3] text-white font-bold text-sm rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer hover:-translate-y-1"
               disabled={loading}
             >
               {loading ? 'LOADING...' : (isSignUp ? 'SIGN UP' : 'SIGN IN')}
@@ -205,14 +200,14 @@ export default function AuthPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.6 }}
-          className="space-y-6 pt-8"
+          className="space-y-2 pt-2"
         >
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t-2 border-white" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="bg-[#2D2D2D] px-6 py-2 text-white font-medium">Or continue with</span>
+              <span className="bg-[#2D2D2D] px-6 py-8 text-white font-medium">Sign up with</span>
             </div>
           </div>
 
@@ -220,34 +215,40 @@ export default function AuthPage() {
             <Button
               type="button"
               variant="ghost"
-              onClick={handleGoogleLogin}
-              className="h-14 w-full max-w-xs bg-white hover:bg-white/90 transition-all duration-300 hover:scale-[1.02] shadow-xl active:scale-[0.98] rounded-3xl flex items-center justify-center gap-3"
+              size="icon"
+              className="h-14 w-14 rounded-full bg-white hover:bg-white/90 transition-all duration-300 hover:scale-110 shadow-xl active:scale-95"
             >
-              <svg className="h-6 w-6" viewBox="0 0 24 24">
-                <path
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  fill="#4285F4"
-                />
-                <path
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  fill="#34A853"
-                />
-                <path
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                  fill="#FBBC05"
-                />
-                <path
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                  fill="#EA4335"
-                />
-              </svg>
-              <span className="text-gray-700 font-bold text-base">Google</span>
+              <User className="h-5 w-5 text-[#1877F2]" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-14 w-14 rounded-full bg-white hover:bg-white/90 transition-all duration-300 hover:scale-110 shadow-xl active:scale-95"
+            >
+              <MailIcon className="h-5 w-5 text-[#EA4335]" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-14 w-14 rounded-full bg-white hover:bg-white/90 transition-all duration-300 hover:scale-110 shadow-xl active:scale-95"
+            >
+              <Globe className="h-5 w-5 text-[#4285F4]" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-14 w-14 rounded-full bg-white hover:bg-white/90 transition-all duration-300 hover:scale-110 shadow-xl active:scale-95"
+            >
+              <Apple className="h-5 w-5 text-black" />
             </Button>
           </div>
         </motion.div>
 
         {/* Toggle Sign In/Sign Up - 8px spacing */}
-        <p className="text-center text-white text-base pt-4">
+        <p className="text-center text-white text-base pt-4 py-8">
           {isSignUp ? 'Already have an account?' : "Don't have an account?"}{" "}
           <button
             type="button"
