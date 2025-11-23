@@ -10,7 +10,9 @@ import { Toaster } from './components/ui/sonner';
 
 export default function App() {
   const { user } = useAuth();
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null); // null = loading
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<
+    boolean | null
+  >(null); // null = loading
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -22,13 +24,13 @@ export default function App() {
 
       try {
         const { data, error } = await supabase
-          .from('user_profiles')
-          .select('tone')
-          .eq('user_id', user.id)
+          .from("user_profiles")
+          .select("tone")
+          .eq("user_id", user.id)
           .single();
 
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error checking onboarding status:', error);
+        if (error && error.code !== "PGRST116") {
+          console.error("Error checking onboarding status:", error);
         }
 
         // If we have a tone, we consider onboarding complete
@@ -38,7 +40,7 @@ export default function App() {
           setHasCompletedOnboarding(false);
         }
       } catch (error) {
-        console.error('Error checking onboarding status:', error);
+        console.error("Error checking onboarding status:", error);
         setHasCompletedOnboarding(false);
       }
     }
@@ -48,16 +50,20 @@ export default function App() {
 
   const handleOnboardingComplete = () => {
     setHasCompletedOnboarding(true);
-    navigate('/dashboard');
+    navigate("/dashboard");
   };
 
   const handleBackToOnboarding = () => {
     setHasCompletedOnboarding(false);
-    navigate('/onboarding');
+    navigate("/onboarding");
   };
 
   if (user && hasCompletedOnboarding === null) {
-    return <div className="min-h-screen bg-[#2D2D2D] flex items-center justify-center text-white">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-[#2D2D2D] flex items-center justify-center text-white">
+        Loading...
+      </div>
+    );
   }
 
   return (

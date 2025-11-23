@@ -1,11 +1,11 @@
-import React, { useEffect, useRef } from 'react';
-import { Renderer, Program, Mesh, Triangle } from 'ogl';
-import './Plasma.css';
+import React, { useEffect, useRef } from "react";
+import { Renderer, Program, Mesh, Triangle } from "ogl";
+import "./Plasma.css";
 
 interface PlasmaProps {
   color?: string;
   speed?: number;
-  direction?: 'forward' | 'reverse' | 'pingpong';
+  direction?: "forward" | "reverse" | "pingpong";
   scale?: number;
   opacity?: number;
   mouseInteractive?: boolean;
@@ -14,7 +14,11 @@ interface PlasmaProps {
 const hexToRgb = (hex: string): [number, number, number] => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   if (!result) return [1, 0.5, 0.2];
-  return [parseInt(result[1], 16) / 255, parseInt(result[2], 16) / 255, parseInt(result[3], 16) / 255];
+  return [
+    parseInt(result[1], 16) / 255,
+    parseInt(result[2], 16) / 255,
+    parseInt(result[3], 16) / 255,
+  ];
 };
 
 const vertex = `#version 300 es
@@ -90,12 +94,12 @@ void main() {
 }`;
 
 export const Plasma: React.FC<PlasmaProps> = ({
-  color = '#ffffff',
+  color = "#ffffff",
   speed = 1,
-  direction = 'forward',
+  direction = "forward",
   scale = 1,
   opacity = 1,
-  mouseInteractive = true
+  mouseInteractive = true,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mousePos = useRef({ x: 0, y: 0 });
@@ -112,28 +116,28 @@ export const Plasma: React.FC<PlasmaProps> = ({
       const useCustomColor = color ? 1.0 : 0.0;
       const customColorRgb = color ? hexToRgb(color) : [1, 1, 1];
 
-      const directionMultiplier = direction === 'reverse' ? -1.0 : 1.0;
+      const directionMultiplier = direction === "reverse" ? -1.0 : 1.0;
 
       renderer = new Renderer({
         webgl: 2,
         alpha: true,
         antialias: false,
-        dpr: Math.min(window.devicePixelRatio || 1, 2)
+        dpr: Math.min(window.devicePixelRatio || 1, 2),
       });
-      
+
       if (!renderer || !renderer.gl) {
-        console.warn('Failed to initialize WebGL renderer');
+        console.warn("Failed to initialize WebGL renderer");
         return;
       }
-      
+
       const gl = renderer.gl;
       canvas = gl.canvas as HTMLCanvasElement;
-      
+
       if (!canvas || !containerRef.current) return;
-      
-      canvas.style.display = 'block';
-      canvas.style.width = '100%';
-      canvas.style.height = '100%';
+
+      canvas.style.display = "block";
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
       containerRef.current.appendChild(canvas);
 
       const geometry = new Triangle(gl);
@@ -151,8 +155,8 @@ export const Plasma: React.FC<PlasmaProps> = ({
           uScale: { value: scale },
           uOpacity: { value: opacity },
           uMouse: { value: new Float32Array([0, 0]) },
-          uMouseInteractive: { value: mouseInteractive ? 1.0 : 0.0 }
-        }
+          uMouseInteractive: { value: mouseInteractive ? 1.0 : 0.0 },
+        },
       });
 
       const mesh = new Mesh(gl, { geometry, program });
@@ -168,7 +172,7 @@ export const Plasma: React.FC<PlasmaProps> = ({
       };
 
       if (mouseInteractive && containerRef.current) {
-        containerRef.current.addEventListener('mousemove', handleMouseMove);
+        containerRef.current.addEventListener("mousemove", handleMouseMove);
       }
 
       const setSize = () => {
@@ -191,27 +195,29 @@ export const Plasma: React.FC<PlasmaProps> = ({
       const t0 = performance.now();
       const loop = (t: number) => {
         if (!mounted) return;
-        
+
         let timeValue = (t - t0) * 0.001;
-        if (direction === 'pingpong') {
+        if (direction === "pingpong") {
           const pingpongDuration = 10;
           const segmentTime = timeValue % pingpongDuration;
           const isForward = Math.floor(timeValue / pingpongDuration) % 2 === 0;
           const u = segmentTime / pingpongDuration;
           const smooth = u * u * (3 - 2 * u);
-          const pingpongTime = isForward ? smooth * pingpongDuration : (1 - smooth) * pingpongDuration;
+          const pingpongTime = isForward
+            ? smooth * pingpongDuration
+            : (1 - smooth) * pingpongDuration;
           (program.uniforms.uDirection as any).value = 1.0;
           (program.uniforms.iTime as any).value = pingpongTime;
         } else {
           (program.uniforms.iTime as any).value = timeValue;
         }
-        
+
         try {
           renderer.render({ scene: mesh });
         } catch (e) {
-          console.warn('Render error:', e);
+          console.warn("Render error:", e);
         }
-        
+
         raf = requestAnimationFrame(loop);
       };
       raf = requestAnimationFrame(loop);
@@ -221,19 +227,30 @@ export const Plasma: React.FC<PlasmaProps> = ({
         cancelAnimationFrame(raf);
         ro.disconnect();
         if (mouseInteractive && containerRef.current) {
-          containerRef.current.removeEventListener('mousemove', handleMouseMove);
+          containerRef.current.removeEventListener(
+            "mousemove",
+            handleMouseMove
+          );
         }
         try {
-          if (canvas && containerRef.current && containerRef.current.contains(canvas)) {
+          if (
+            canvas &&
+            containerRef.current &&
+            containerRef.current.contains(canvas)
+          ) {
             containerRef.current.removeChild(canvas);
           }
         } catch (e) {
-          console.warn('Cleanup error:', e);
+          console.warn("Cleanup error:", e);
         }
       };
     } catch (error) {
-      console.error('Plasma component error:', error);
-      if (canvas && containerRef.current && containerRef.current.contains(canvas)) {
+      console.error("Plasma component error:", error);
+      if (
+        canvas &&
+        containerRef.current &&
+        containerRef.current.contains(canvas)
+      ) {
         try {
           containerRef.current.removeChild(canvas);
         } catch {}

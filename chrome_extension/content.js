@@ -6,6 +6,7 @@ const PROJECT_REF = "paxhkncmathdqqnnvgtb";
 const SUPABASE_FUNCTION_URL = `https://${PROJECT_REF}.supabase.co/functions/v1/generate-coaching`;
 const SUPABASE_LOG_URL = `https://${PROJECT_REF}.supabase.co/functions/v1/log-purchase`;
 const GEMINI_API_KEY = typeof CONFIG !== 'undefined' ? CONFIG.GEMINI_API_KEY : null;
+const DASHBOARD_URL = typeof CONFIG !== 'undefined' ? CONFIG.DASHBOARD_URL : "http://localhost:5173";
 
 // --- State ---
 let isPopupOpen = false;
@@ -20,13 +21,29 @@ chrome.storage.local.get(['user'], (result) => {
   } else {
     console.warn("InvestHer: No User ID found in storage.");
   }
+  
+  // Start detection ONLY after we've attempted to load the user
+  detectProduct();
+  setInterval(detectProduct, 2000);
 });
+
+// DEBUG: Clear dismissal on reload for easier testing
+if (window.location.href.includes('test-cart') || window.location.hostname === 'localhost') {
+    sessionStorage.removeItem('investher_dismissed');
+    console.log("InvestHer: Debug mode - Cleared dismissal state.");
+}
 
 // --- Session Sync Logic ---
 
 function checkDashboardSession() {
-  // Only run on the dashboard URL (localhost ports)
-  if (window.location.hostname === 'localhost' && ['3000', '3001', '5173'].includes(window.location.port)) {
+  // Parse the configured dashboard URL
+  let dashboardHostname = 'localhost';
+  try {
+      dashboardHostname = new URL(DASHBOARD_URL).hostname;
+  } catch (e) {}
+
+  // Only run on the dashboard URL
+  if (window.location.hostname === dashboardHostname || (dashboardHostname === 'localhost' && ['3000', '3001', '5173'].includes(window.location.port))) {
     console.log("InvestHer: Checking for dashboard session...");
     
     // Supabase stores session in localStorage with key: sb-<project-ref>-auth-token
@@ -71,6 +88,32 @@ function formatCurrency(amount) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount);
 }
 
+function cleanProductTitle(title) {
+  if (!title) return "Unknown Item";
+  // Remove common prefixes/suffixes
+  let clean = title.replace(/Amazon\.com\s*:/i, '')
+                   .replace(/ : Amazon\.com/i, '')
+                   .replace(/Details about/i, '');
+  
+  // Split by common separators and take the first meaningful chunk
+  const separators = [' – ', ' - ', ' | ', ', ', ' : '];
+  for (const sep of separators) {
+      if (clean.includes(sep)) {
+          const parts = clean.split(sep);
+          if (parts[0].length > 10) {
+              clean = parts[0];
+              break;
+          }
+      }
+  }
+
+  // Hard truncate if still too long
+  if (clean.length > 40) {
+      clean = clean.substring(0, 37) + '...';
+  }
+  return clean.trim();
+}
+
 function calculateAlternatives(price) {
   const coffeePrice = 6;
   const groceryWeekPrice = 100;
@@ -79,19 +122,17 @@ function calculateAlternatives(price) {
   const numGroceries = (price / groceryWeekPrice).toFixed(1);
 
   return [
+    "Extra payment toward your goals",
     `${numCoffees} fancy coffees with friends`,
-    `${numGroceries} weeks of groceries`,
-    "Extra payment toward your goals"
+    `${numGroceries} weeks of groceries`
   ];
 }
 
 // --- AI-Powered Page Scraping ---
 async function scrapePageWithAI(productTitle, price) {
-  if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
-    console.warn("InvestHer: Gemini API key not configured, using fallback data");
-    return null;
-  }
-
+  // We don't need the Gemini API key here anymore because we are sending the data to the backend
+  // to be processed. The backend has the key.
+  
   try {
     // Extract raw data from page
     const pageData = {
@@ -131,106 +172,41 @@ async function scrapePageWithAI(productTitle, price) {
     pageData.storeImage = favicon?.href || storeLogo?.content ||
                           `https://www.google.com/s2/favicons?domain=${window.location.hostname}&sz=128`;
 
-    // Build prompt for Gemini
-    const prompt = `You are analyzing an e-commerce page to extract structured purchase data.
+    // Return structured data directly (no AI scraping on client side)
+    const cleanName = cleanProductTitle(productTitle);
+    return {
+        products: [{ name: cleanName, price: price, quantity: 1 }], // Fallback to detected title
+        store: window.location.hostname.replace('www.', ''),
+        category: "General",
+        store_image: pageData.storeImage
+    };
 
-Page URL: ${pageData.url}
-Page Title: ${pageData.title}
-Total Price: $${pageData.price}
-Detected Product/Cart: ${pageData.detectedProduct}
-
-${pageData.productElements.length > 0 ? `Product Items Found:\n${pageData.productElements.join('\n---\n')}` : 'No specific product items detected.'}
-
-Task: Extract and structure the following information:
-1. **products**: Array of product objects with name, estimated_price (distribute total if multiple items), quantity
-2. **store**: The store/website name (e.g., "Amazon", "Target", not the full domain)
-3. **category**: Purchase category (e.g., "Clothing", "Electronics", "Beauty", "Home & Garden", "Food & Groceries", "Entertainment", "Other")
-4. **store_image**: "${pageData.storeImage}"
-
-Return ONLY valid JSON in this exact format:
-{
-  "products": [{"name": "Product Name", "price": 29.99, "quantity": 1}],
-  "store": "Store Name",
-  "category": "Category",
-  "store_image": "${pageData.storeImage}"
-}
-
-If you cannot determine products, use: [{"name": "${pageData.detectedProduct}", "price": ${pageData.price}, "quantity": 1}]`;
-
-    // Call Gemini
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: prompt }]
-          }]
-        })
-      }
-    );
-
-    const data = await response.json();
-
-    if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-      const text = data.candidates[0].content.parts[0].text.trim();
-      // Remove markdown code blocks if present
-      const jsonText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      const structured = JSON.parse(jsonText);
-
-      console.log("InvestHer: AI-scraped data:", structured);
-      return structured;
-    }
   } catch (error) {
-    console.error("InvestHer: AI scraping failed", error);
+    console.error("InvestHer: Scraping failed", error);
   }
 
   return null;
 }
 
 async function generateCoachingWithAI(metadata, price) {
-  if (!GEMINI_API_KEY) return null;
-
-  const prompt = `You are a wise and witty financial coach.
-  User is looking at: ${metadata.store} - ${metadata.category}
-  Items: ${metadata.products.map(p => p.name).join(', ')}
-  Total Price: $${price}
-
-  Generate 3 alternative uses for this money ($${price}) that would motivate them to save instead.
-  Make them specific to the price point and the item they are buying.
-  1. A fun/social alternative.
-  2. A practical/essential alternative.
-  3. A financial growth alternative.
-
-  Also provide:
-  - pro: A validation of why they want this item (empathetic).
-  - con: A gentle reality check about buying it.
-
-  Return ONLY valid JSON:
-  {
-    "alternatives": ["string", "string", "string"],
-    "pro": "string",
-    "con": "string"
-  }`;
-
+  // Call Supabase Edge Function instead of direct Gemini call
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
+    const res = await fetch(SUPABASE_FUNCTION_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
+        body: JSON.stringify({ 
+          item_name: metadata.products[0].name, 
+          price: price, 
+          description: `Buying from ${metadata.store}`,
+          user_id: currentUserId 
         })
-      }
-    );
-    const data = await response.json();
-    if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-        const text = data.candidates[0].content.parts[0].text.trim();
-        const jsonText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        return JSON.parse(jsonText);
+    });
+    const data = await res.json();
+    console.log("InvestHer: AI Response Data:", data); // DEBUG LOG
+    if (data.debug_raw) {
+        console.log("InvestHer: DEBUG RAW STRING (Copy this):", data.debug_raw);
     }
+    return data;
   } catch (e) {
     console.error("InvestHer: AI Coaching failed", e);
   }
@@ -252,18 +228,20 @@ async function createCoachPopup(productName, price) {
   container.id = 'investher-popup-container';
 
   // Initial State (Immediate Show with Loading placeholders)
+  const logoUrl = chrome.runtime.getURL('logo.png');
   container.innerHTML = `
     <button class="investher-close-btn" id="investher-close-x">×</button>
     <div class="investher-header">
+      <div style="display: flex; justify-content: center; margin-bottom: 12px;">
+        <img src="${logoUrl}" style="width: 48px; height: 48px; object-fit: contain;" alt="InvestHer Logo">
+      </div>
       <h1 class="investher-title">Before You Buy</h1>
       <div class="investher-price">${formatCurrency(price)}</div>
       <div class="investher-subtitle">Could be used for...</div>
     </div>
 
-    <!-- Dynamic Product Details (Hidden until AI scraping completes) -->
-    <div id="investher-product-details" style="display: none; padding: 0 20px 10px; border-bottom: 1px solid rgba(255,255,255,0.1);">
-      <!-- Product details will be injected here by AI -->
-    </div>
+    <!-- Dynamic Product Details (Hidden) -->
+    <div id="investher-product-details" style="display: none;"></div>
 
     <div class="investher-content">
       <!-- Loading State for Content -->
@@ -328,21 +306,8 @@ async function createCoachPopup(productName, price) {
     if (metadata && metadata.products) {
       const productDetailsEl = document.getElementById('investher-product-details');
       if (productDetailsEl) {
-        const productsHtml = metadata.products.map(p =>
-          `<div class="investher-product-item">
-            <span class="investher-product-name">${p.name}</span>
-            <span class="investher-product-price">${formatCurrency(p.price)} ${p.quantity > 1 ? `(×${p.quantity})` : ''}</span>
-          </div>`
-        ).join('');
-
-        productDetailsEl.innerHTML = `
-          <div class="investher-store-badge">
-            <img src="${metadata.store_image}" alt="${metadata.store}" class="investher-store-icon" />
-            <span>${metadata.store} • ${metadata.category}</span>
-          </div>
-          <div class="investher-product-list">${productsHtml}</div>
-        `;
-        productDetailsEl.style.display = 'block';
+        // Removed product list rendering as requested
+        productDetailsEl.style.display = 'none';
       }
     }
   } catch (e) {
@@ -357,7 +322,15 @@ async function createCoachPopup(productName, price) {
 
   // If AI failed, try Supabase or local fallback
   if (!coachingData) {
+    // Double check user ID if it was null initially
+    if (!currentUserId) {
+        console.log("InvestHer: User ID was null, checking storage again before fallback...");
+        const storage = await chrome.storage.local.get(['user']);
+        if (storage.user) currentUserId = storage.user.id;
+    }
+
     try {
+        console.log("InvestHer: Attempting fallback fetch...");
         const res = await fetch(SUPABASE_FUNCTION_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -369,6 +342,7 @@ async function createCoachPopup(productName, price) {
             })
         });
         coachingData = await res.json();
+        console.log("InvestHer: Fallback Response Data:", coachingData); // DEBUG LOG
     } catch (e) {
         console.error("InvestHer: Supabase fetch failed", e);
     }
@@ -379,7 +353,7 @@ async function createCoachPopup(productName, price) {
   document.getElementById('investher-loaded-content').style.display = 'block';
 
   const altList = document.getElementById('investher-alt-list');
-  const icons = ['☕', '🛒', '💰'];
+  const icons = ['💰', '☕', '🛒'];
   const alternatives = (coachingData && coachingData.alternatives) ? coachingData.alternatives : calculateAlternatives(price);
 
   altList.innerHTML = alternatives.slice(0, 3).map((alt, index) => `
@@ -403,7 +377,7 @@ async function createCoachPopup(productName, price) {
   document.getElementById('investher-save-btn').addEventListener('click', () => {
       if (!currentUserId) {
         alert("Please log in to the InvestHer dashboard first to track your savings!");
-        window.open('http://localhost:5173', '_blank'); // Open dashboard
+        window.open(DASHBOARD_URL, '_blank'); // Open dashboard
         return;
       }
 
@@ -469,6 +443,8 @@ async function createCoachPopup(productName, price) {
 }
 
 // --- Detection Logic ---
+let hasLoggedUrlCheck = false;
+
 function detectProduct() {
   // Check if already dismissed in this session
   if (sessionStorage.getItem('investher_dismissed') === 'true') return;
@@ -486,6 +462,10 @@ function detectProduct() {
                             currentUrl.includes('gp/buy');    // Amazon Buy
 
   if (!isCheckoutContext) {
+    if (!hasLoggedUrlCheck) {
+        console.log("InvestHer: URL does not match checkout context:", currentUrl);
+        hasLoggedUrlCheck = true;
+    }
     return;
   }
 
@@ -618,10 +598,11 @@ function detectProduct() {
 
   if (price > 0) {
     // IMMEDIATE POPUP
-    createCoachPopup(title, price);
+    const cleanName = cleanProductTitle(title);
+    createCoachPopup(cleanName, price);
   }
 }
 
 // Run detection immediately and then check periodically for SPAs/Navigation
-detectProduct();
-setInterval(detectProduct, 2000);
+// detectProduct(); // Moved to storage callback
+// setInterval(detectProduct, 2000); // Moved to storage callback

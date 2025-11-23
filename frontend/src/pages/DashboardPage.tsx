@@ -1,11 +1,16 @@
 import { useState, useMemo, useEffect } from 'react';
 import { ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area } from 'recharts';
-import { TrendingUp, Calendar, Target, ChevronDown, Info, Zap, ChevronUp, LogOut, ArrowLeft } from 'lucide-react';
+import { TrendingUp, Calendar, ChevronDown, Info, Zap, ChevronUp, LogOut, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
-import Aurora from '../components/Aurora';
+
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
 import { model } from '../gemini';
+
+// Import educational articles images
+import article1 from "../assets/article-1.jpeg";
+import article2 from "../assets/article-2.jpeg";
+import article3 from "../assets/article-3.jpeg";
 
 // Savings history data from DB
 interface SavingsItem {
@@ -26,60 +31,97 @@ interface RecentItem {
 
 // ETF options with different return rates
 const ETF_OPTIONS = {
-  VDY: { name: 'Vanguard Canadian High Dividend Yield', annualReturn: 0.07, description: 'Canadian Dividend ETF' },
-  VFV: { name: 'Vanguard S&P 500 Index', annualReturn: 0.11, description: 'S&P 500 CAD' },
-  SPY: { name: 'SPDR S&P 500 ETF', annualReturn: 0.11, description: 'S&P 500 USD' },
-  XEQT: { name: 'iShares Core Equity ETF', annualReturn: 0.09, description: 'All Equity Balanced' },
-  QQQ: { name: 'Invesco QQQ Trust', annualReturn: 0.14, description: 'Nasdaq 100' },
+  VDY: {
+    name: "Vanguard Canadian High Dividend Yield",
+    annualReturn: 0.07,
+    description: "Canadian Dividend ETF",
+  },
+  VFV: {
+    name: "Vanguard S&P 500 Index",
+    annualReturn: 0.11,
+    description: "S&P 500 CAD",
+  },
+  SPY: {
+    name: "SPDR S&P 500 ETF",
+    annualReturn: 0.11,
+    description: "S&P 500 USD",
+  },
+  XEQT: {
+    name: "iShares Core Equity ETF",
+    annualReturn: 0.09,
+    description: "All Equity Balanced",
+  },
+  QQQ: {
+    name: "Invesco QQQ Trust",
+    annualReturn: 0.14,
+    description: "Nasdaq 100",
+  },
 };
 
 type ETFTicker = keyof typeof ETF_OPTIONS;
 
 // Generate ETF data based on recurring contributions (dollar-cost averaging)
 function generateETFData(
-  savingsHistory: SavingsItem[], 
-  startDate: Date, 
-  endDate: Date, 
+  savingsHistory: SavingsItem[],
+  startDate: Date,
+  endDate: Date,
   ticker: ETFTicker,
   recurringAmount: number,
-  recurringFrequency: 'weekly' | 'monthly'
+  recurringFrequency: "weekly" | "monthly"
 ) {
   const data = [];
-  const daysDiff = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-  
+  const daysDiff = Math.floor(
+    (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
   const annualReturn = ETF_OPTIONS[ticker].annualReturn;
   const dailyReturn = Math.pow(1 + annualReturn, 1 / 365) - 1;
-  
+
   // Sort savings by date (oldest first)
-  const sortedSavings = [...savingsHistory].sort((a, b) => 
-    new Date(a.date).getTime() - new Date(b.date).getTime()
+  const sortedSavings = [...savingsHistory].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
-  
+
   // Track each contribution separately with its growth
-  const contributions: { date: Date; amount: number; currentValue: number; type: 'impulse' | 'recurring' }[] = [];
-  
+  const contributions: {
+    date: Date;
+    amount: number;
+    currentValue: number;
+    type: "impulse" | "recurring";
+  }[] = [];
+
   // Calculate interval days for recurring contributions
-  const recurringIntervalDays = recurringFrequency === 'weekly' ? 7 : 30;
-  let nextRecurringDate = new Date(new Date().getTime() + recurringIntervalDays * 24 * 60 * 60 * 1000);
-  
-  for (let i = 0; i <= daysDiff; i += 1) { // Daily calculations
+  const recurringIntervalDays = recurringFrequency === "weekly" ? 7 : 30;
+  let nextRecurringDate = new Date(
+    new Date().getTime() + recurringIntervalDays * 24 * 60 * 60 * 1000
+  );
+
+  for (let i = 0; i <= daysDiff; i += 1) {
+    // Daily calculations
     const currentDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
-    
+
     // Check if any impulse savings should be added on this date
-    sortedSavings.forEach(saving => {
+    sortedSavings.forEach((saving) => {
       const savingDate = new Date(saving.date);
       // Add contribution if it matches current date and hasn't been added yet
-      if (savingDate.toDateString() === currentDate.toDateString() && 
-          !contributions.some(c => c.date.getTime() === savingDate.getTime() && c.amount === saving.amount && c.type === 'impulse')) {
+      if (
+        savingDate.toDateString() === currentDate.toDateString() &&
+        !contributions.some(
+          (c) =>
+            c.date.getTime() === savingDate.getTime() &&
+            c.amount === saving.amount &&
+            c.type === "impulse"
+        )
+      ) {
         contributions.push({
           date: new Date(savingDate),
           amount: saving.amount,
           currentValue: saving.amount,
-          type: 'impulse'
+          type: "impulse",
         });
       }
     });
-    
+
     // Add recurring contributions if enabled and date matches
     if (recurringAmount > 0 && currentDate >= nextRecurringDate) {
       while (nextRecurringDate <= currentDate) {
@@ -87,30 +129,43 @@ function generateETFData(
           date: new Date(nextRecurringDate),
           amount: recurringAmount,
           currentValue: recurringAmount,
-          type: 'recurring'
+          type: "recurring",
         });
-        nextRecurringDate = new Date(nextRecurringDate.getTime() + recurringIntervalDays * 24 * 60 * 60 * 1000);
+        nextRecurringDate = new Date(
+          nextRecurringDate.getTime() +
+            recurringIntervalDays * 24 * 60 * 60 * 1000
+        );
       }
     }
-    
+
     // Grow all existing contributions by daily return
     const volatility = (Math.random() - 0.5) * 0.003;
     const todayReturn = dailyReturn + volatility;
-    
-    contributions.forEach(contribution => {
+
+    contributions.forEach((contribution) => {
       contribution.currentValue = contribution.currentValue * (1 + todayReturn);
     });
-    
+
     // Calculate totals
-    const totalValue = contributions.reduce((sum, c) => sum + c.currentValue, 0);
+    const totalValue = contributions.reduce(
+      (sum, c) => sum + c.currentValue,
+      0
+    );
     const totalPrincipal = contributions.reduce((sum, c) => sum + c.amount, 0);
-    const impulseSavingsTotal = contributions.filter(c => c.type === 'impulse').reduce((sum, c) => sum + c.amount, 0);
-    const recurringTotal = contributions.filter(c => c.type === 'recurring').reduce((sum, c) => sum + c.amount, 0);
-    
+    const impulseSavingsTotal = contributions
+      .filter((c) => c.type === "impulse")
+      .reduce((sum, c) => sum + c.amount, 0);
+    const recurringTotal = contributions
+      .filter((c) => c.type === "recurring")
+      .reduce((sum, c) => sum + c.amount, 0);
+
     // Add data point every 7 days for chart performance
     if (i % 7 === 0) {
       data.push({
-        date: currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        date: currentDate.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        }),
         value: totalValue,
         principal: totalPrincipal,
         gain: totalValue - totalPrincipal,
@@ -120,19 +175,23 @@ function generateETFData(
       });
     }
   }
-  
+
   return data;
 }
 
+
+
 export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding?: () => void }) {
   const { signOut, user } = useAuth();
-  const [selectedTicker, setSelectedTicker] = useState<ETFTicker>('VDY');
+  const [selectedTicker, setSelectedTicker] = useState<ETFTicker>("VDY");
   const [showTickerDropdown, setShowTickerDropdown] = useState(false);
   const [isGainsCardExpanded, setIsGainsCardExpanded] = useState(false);
-  const [timeRange, setTimeRange] = useState<'6mo' | '1Y' | '2Y' | '5Y'>('1Y');
+  const [timeRange, setTimeRange] = useState<"6mo" | "1Y" | "2Y" | "5Y">("1Y");
   const [recurringAmount, setRecurringAmount] = useState<number>(0);
-  const [recurringFrequency, setRecurringFrequency] = useState<'weekly' | 'monthly'>('weekly');
-  
+  const [recurringFrequency, setRecurringFrequency] = useState<
+    "weekly" | "monthly"
+  >("weekly");
+
   // Goals tracking state
   interface Goal {
     id: string;
@@ -145,10 +204,10 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
   const [goals, setGoals] = useState<Goal[]>([]);
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [newGoal, setNewGoal] = useState({
-    name: '',
+    name: "",
     targetAmount: 0,
     allocatedAmount: 0,
-    color: '#FF88B7'
+    color: "#FF88B7",
   });
 
   const [savingsHistory, setSavingsHistory] = useState<SavingsItem[]>([]);
@@ -163,9 +222,7 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
     struggles: string[];
   }
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [aiInsight, setAiInsight] = useState<string>('');
   const [aiWelcome, setAiWelcome] = useState<string>('');
-  const [loadingAi, setLoadingAi] = useState(false);
 
   // Fetch data from Supabase
   useEffect(() => {
@@ -260,8 +317,8 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
     fetchData();
   }, [user]);
 
-  const totalSaved = useMemo(() => 
-    savingsHistory.reduce((sum, item) => sum + item.amount, 0),
+  const totalSaved = useMemo(
+    () => savingsHistory.reduce((sum, item) => sum + item.amount, 0),
     [savingsHistory]
   );
 
@@ -279,46 +336,56 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
   const endDate = useMemo(() => {
     const end = new Date();
     switch (timeRange) {
-      case '6mo':
+      case "6mo":
         end.setMonth(end.getMonth() + 6);
         break;
-      case '1Y':
+      case "1Y":
         end.setFullYear(end.getFullYear() + 1);
         break;
-      case '2Y':
+      case "2Y":
         end.setFullYear(end.getFullYear() + 2);
         break;
-      case '5Y':
+      case "5Y":
         end.setFullYear(end.getFullYear() + 5);
         break;
     }
     return end;
   }, [timeRange]);
 
-  const etfData = useMemo(() => 
-    generateETFData(savingsHistory, accountCreationDate, endDate, selectedTicker, recurringAmount, recurringFrequency),
-    [savingsHistory, accountCreationDate, endDate, selectedTicker, recurringAmount, recurringFrequency]
+  const etfData = useMemo(
+    () =>
+      generateETFData(
+        savingsHistory,
+        accountCreationDate,
+        endDate,
+        selectedTicker,
+        recurringAmount,
+        recurringFrequency
+      ),
+    [
+      savingsHistory,
+      accountCreationDate,
+      endDate,
+      selectedTicker,
+      recurringAmount,
+      recurringFrequency,
+    ]
   );
 
   const currentValue = etfData[etfData.length - 1]?.value || totalSaved;
   const totalPrincipal = etfData[etfData.length - 1]?.principal || totalSaved;
   const totalGain = currentValue - totalPrincipal;
-  const gainPercentage = totalPrincipal > 0 ? ((totalGain / totalPrincipal) * 100).toFixed(2) : '0.00';
+  const gainPercentage =
+    totalPrincipal > 0
+      ? ((totalGain / totalPrincipal) * 100).toFixed(2)
+      : "0.00";
 
   const totalAllocated = useMemo(() => goals.reduce((sum, g) => sum + g.allocatedAmount, 0), [goals]);
   const unallocated = Math.max(0, totalSaved - totalAllocated);
 
   const impulsePurchasesCancelled = savingsHistory.length;
 
-  // Calculate time range label
-  const timeRangeLabel = useMemo(() => {
-    const months = Math.floor((endDate.getTime() - accountCreationDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
-    if (timeRange === '6mo') return '6 months';
-    if (timeRange === '1Y') return '1 year';
-    if (timeRange === '2Y') return '2 years';
-    if (timeRange === '5Y') return '5 years';
-    return `${months} months`;
-  }, [timeRange, endDate, accountCreationDate]);
+
 
   // Add Goal Handler
   const handleAddGoal = async () => {
@@ -443,27 +510,7 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
     if (!userProfile || savingsHistory.length === 0) return;
 
     const generateAiContent = async () => {
-      setLoadingAi(true);
       try {
-        const totalSavedVal = savingsHistory.reduce((sum, item) => sum + item.amount, 0);
-        const impulseCount = savingsHistory.length;
-        
-        // Generate Insight
-        const insightPrompt = `
-          You are a financial coach with a ${userProfile.tone} tone.
-          The user is motivated by: ${userProfile.motivations?.join(', ') || 'financial freedom'}.
-          They struggle with: ${userProfile.struggles?.join(', ') || 'saving'}.
-          They have saved $${totalSavedVal.toFixed(2)} by skipping ${impulseCount} impulse purchases.
-          
-          Generate a short, punchy, 1-2 sentence insight or piece of advice for them. 
-          Focus on the positive reinforcement of their actions.
-          Do not use markdown. Just plain text.
-        `;
-
-        const insightResult = await model.generateContent(insightPrompt);
-        const insightResponse = await insightResult.response;
-        setAiInsight(insightResponse.text());
-
         // Generate Welcome Message
         const welcomePrompt = `
           Generate a short (2-5 words) welcome greeting for a user who prefers a ${userProfile.tone} tone.
@@ -481,10 +528,7 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
 
       } catch (error) {
         console.error("Error generating AI content:", error);
-        setAiInsight("Great job on your savings! Keep it up!");
         setAiWelcome("Welcome back");
-      } finally {
-        setLoadingAi(false);
       }
     };
 
@@ -492,24 +536,12 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
   }, [userProfile, savingsHistory.length]); // Re-run if profile or history length changes
 
   return (
-    <div className="min-h-screen bg-[#2D2D2D] relative">
-      {/* Animated Aurora background - Fixed position */}
-      <div className="fixed inset-0 z-0 opacity-40 pointer-events-none">
-        <Aurora
-          colorStops={["#FF88B7", "#7B61FF", "#FF88B7"]}
-          blend={0.6}
-          amplitude={0.8}
-          speed={0.4}
-        />
-      </div>
-
-      {/* Scrollable Content */}
-      <div className="relative z-10">
-        {/* Header */}
-        <div className="pt-8 pb-16 px-6">
-          <div className="max-w-[1400px] mx-auto">
-            <div className="flex items-center justify-end gap-4 mb-8">
-              {onBackToOnboarding && (
+    <div className="min-h-screen px-12 py-8">
+      {/* Header */}
+      <div className="max-w-[1400px] mx-auto mb-8">
+        <div className="bg-[#2D2D2D]/90 backdrop-blur-xl rounded-3xl p-8 border border-white/10 relative">
+          <div className="absolute top-6 right-6 flex gap-3">
+            {onBackToOnboarding && (
                 <button
                   onClick={onBackToOnboarding}
                   className="text-white/60 hover:text-white transition-all duration-200 flex items-center gap-2 text-sm px-3 py-2 rounded-lg hover:bg-white/10"
@@ -567,7 +599,9 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
                   )}
                   <div>
                     <div className="text-sm">{item.company}</div>
-                    <div className="text-xs text-[#999999]">{item.daysAgo} day{item.daysAgo > 1 ? 's' : ''} ago</div>
+                    <div className="text-xs text-[#999999]">
+                      {item.daysAgo} day{item.daysAgo > 1 ? "s" : ""} ago
+                    </div>
                   </div>
                 </div>
               ))}
@@ -613,51 +647,80 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
                 onClick={() => setShowAddGoal(!showAddGoal)}
                 className="text-xs px-3 py-1.5 bg-gradient-to-r from-[#FF88B7] to-[#7B61FF] text-white rounded-lg hover:opacity-90 transition-opacity"
               >
-                {showAddGoal ? 'Cancel' : '+ Add Goal'}
+                {showAddGoal ? "Cancel" : "+ Add Goal"}
               </button>
             </div>
 
             {showAddGoal && (
               <div className="mb-4 p-4 bg-[#f5f5f5] rounded-xl space-y-3">
                 <div>
-                  <label className="text-xs text-[#666] mb-1 block">Goal Name</label>
+                  <label className="text-xs text-[#666] mb-1 block">
+                    Goal Name
+                  </label>
                   <input
                     type="text"
                     value={newGoal.name}
-                    onChange={(e) => setNewGoal({ ...newGoal, name: e.target.value })}
+                    onChange={(e) =>
+                      setNewGoal({ ...newGoal, name: e.target.value })
+                    }
                     placeholder="e.g., Emergency Fund"
                     className="w-full px-3 py-2 bg-white rounded-lg text-sm outline-none border border-[#e5e5e5]"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-[#666] mb-1 block">Target Amount</label>
+                  <label className="text-xs text-[#666] mb-1 block">
+                    Target Amount
+                  </label>
                   <input
                     type="number"
-                    value={newGoal.targetAmount || ''}
-                    onChange={(e) => setNewGoal({ ...newGoal, targetAmount: parseFloat(e.target.value) || 0 })}
+                    value={newGoal.targetAmount || ""}
+                    onChange={(e) =>
+                      setNewGoal({
+                        ...newGoal,
+                        targetAmount: parseFloat(e.target.value) || 0,
+                      })
+                    }
                     placeholder="$1,000"
                     className="w-full px-3 py-2 bg-white rounded-lg text-sm outline-none border border-[#e5e5e5]"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-[#666] mb-1 block">Allocate Now</label>
+                  <label className="text-xs text-[#666] mb-1 block">
+                    Allocate Now
+                  </label>
                   <input
                     type="number"
-                    value={newGoal.allocatedAmount || ''}
-                    onChange={(e) => setNewGoal({ ...newGoal, allocatedAmount: parseFloat(e.target.value) || 0 })}
+                    value={newGoal.allocatedAmount || ""}
+                    onChange={(e) =>
+                      setNewGoal({
+                        ...newGoal,
+                        allocatedAmount: parseFloat(e.target.value) || 0,
+                      })
+                    }
                     placeholder="$100"
                     className="w-full px-3 py-2 bg-white rounded-lg text-sm outline-none border border-[#e5e5e5]"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-[#666] mb-1 block">Color</label>
+                  <label className="text-xs text-[#666] mb-1 block">
+                    Color
+                  </label>
                   <div className="flex gap-2">
-                    {['#FF88B7', '#7B61FF', '#0fedbe', '#ffaa2b', '#FF6B9D', '#9B83FF'].map((color) => (
+                    {[
+                      "#FF88B7",
+                      "#7B61FF",
+                      "#0fedbe",
+                      "#ffaa2b",
+                      "#FF6B9D",
+                      "#9B83FF",
+                    ].map((color) => (
                       <button
                         key={color}
                         onClick={() => setNewGoal({ ...newGoal, color })}
                         className={`w-8 h-8 rounded-lg transition-all ${
-                          newGoal.color === color ? 'ring-2 ring-offset-2 ring-gray-400' : ''
+                          newGoal.color === color
+                            ? "ring-2 ring-offset-2 ring-gray-400"
+                            : ""
                         }`}
                         style={{ backgroundColor: color }}
                       />
@@ -676,17 +739,20 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
             {(() => {
               const totalAllocated = goals.reduce((sum, g) => sum + g.allocatedAmount, 0);
               const unallocated = Math.max(0, totalSaved - totalAllocated);
-              
               return (
                 <>
                   <div className="mb-4 p-3 bg-gradient-to-br from-[#FF88B7]/10 to-[#7B61FF]/10 rounded-lg border border-[#FF88B7]/20">
                     <div className="flex items-center justify-between text-xs mb-1">
                       <span className="text-[#666]">Total Allocated</span>
-                      <span className="font-medium">${totalAllocated.toFixed(2)}</span>
+                      <span className="font-medium">
+                        ${totalAllocated.toFixed(2)}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-[#666]">Unallocated</span>
-                      <span className="font-medium text-[#7B61FF]">${unallocated.toFixed(2)}</span>
+                      <span className="font-medium text-[#7B61FF]">
+                        ${unallocated.toFixed(2)}
+                      </span>
                     </div>
                   </div>
 
@@ -698,20 +764,28 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
                   ) : (
                     <div className="space-y-4">
                       {goals.map((goal) => {
-                        const progressPercentage = goal.targetAmount > 0 
-                          ? Math.min((goal.allocatedAmount / goal.targetAmount) * 100, 100)
-                          : 0;
-                        const isComplete = goal.allocatedAmount >= goal.targetAmount;
-                        
+                        const progressPercentage =
+                          goal.targetAmount > 0
+                            ? Math.min(
+                                (goal.allocatedAmount / goal.targetAmount) *
+                                  100,
+                                100
+                              )
+                            : 0;
+                        const isComplete =
+                          goal.allocatedAmount >= goal.targetAmount;
+
                         return (
                           <div key={goal.id}>
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2 flex-1">
-                                <div 
+                                <div
                                   className="w-2 h-2 rounded-full flex-shrink-0"
                                   style={{ backgroundColor: goal.color }}
                                 />
-                                <span className="text-sm truncate">{goal.name}</span>
+                                <span className="text-sm truncate">
+                                  {goal.name}
+                                </span>
                               </div>
                               <button
                                 onClick={() => handleDeleteGoal(goal.id)}
@@ -720,10 +794,12 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
                                 ✕
                               </button>
                             </div>
-                            
+
                             <div className="mb-2 flex items-center gap-2">
                               <div className="flex-1 relative">
-                                <span className="absolute left-2 top-1.5 text-xs text-[#999]">$</span>
+                                <span className="absolute left-2 top-1.5 text-xs text-[#999]">
+                                  $
+                                </span>
                                 <input
                                   type="number"
                                   value={goalInputValues[goal.id] !== undefined ? goalInputValues[goal.id] : (goal.allocatedAmount || '')}
@@ -740,18 +816,20 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
                               </button>
                               <span className="text-xs text-[#666]">/ ${goal.targetAmount}</span>
                             </div>
-                            
+
                             <div className="h-2 bg-[#f0f0f0] rounded-full overflow-hidden">
-                              <div 
+                              <div
                                 className="h-full transition-all duration-500"
-                                style={{ 
+                                style={{
                                   width: `${progressPercentage}%`,
-                                  background: `linear-gradient(to right, ${goal.color}, ${goal.color}dd)`
+                                  background: `linear-gradient(to right, ${goal.color}, ${goal.color}dd)`,
                                 }}
                               />
                             </div>
                             {isComplete && (
-                              <div className="text-xs text-[#0fedbe] mt-1">✓ Goal reached!</div>
+                              <div className="text-xs text-[#0fedbe] mt-1">
+                                ✓ Goal reached!
+                              </div>
                             )}
                           </div>
                         );
@@ -800,9 +878,13 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
                   <div className="flex items-start gap-3">
                     <Zap className="w-5 h-5 flex-shrink-0 mt-1" />
                     <div className="text-left">
-                      <div className="text-xs opacity-90 mb-1">Recurring Contribution Scenario</div>
+                      <div className="text-xs opacity-90 mb-1">
+                        Recurring Contribution Scenario
+                      </div>
                       <div className="text-sm opacity-80 leading-relaxed">
-                        Each time you saved, that money was automatically added to your {selectedTicker} portfolio and started growing from that day!
+                        Each time you saved, that money was automatically added
+                        to your {selectedTicker} portfolio and started growing
+                        from that day!
                       </div>
                     </div>
                   </div>
@@ -831,8 +913,12 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
                 <div className="mt-6 pt-6 border-t border-white/20">
                   <div className="flex items-center justify-between">
                     <div className="text-left">
-                      <div className="text-sm opacity-90 mb-1">Your Potential Reward</div>
-                      <div className="text-xs opacity-75">This is the extra money you could earn</div>
+                      <div className="text-sm opacity-90 mb-1">
+                        Your Potential Reward
+                      </div>
+                      <div className="text-xs opacity-75">
+                        This is the extra money you could earn
+                      </div>
                     </div>
                     <span className="text-3xl font-bold">${totalGain.toFixed(2)}</span>
                   </div>
@@ -845,7 +931,10 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
           <div className="bg-white rounded-2xl p-6 border border-[#e5e5e5]">
             <div className="mb-4">
               <h3 className="mb-1">Savings History</h3>
-              <p className="text-xs text-[#666]">Each time you avoided an impulse buy, that amount was added to your portfolio on that day and started growing</p>
+              <p className="text-xs text-[#666]">
+                Each time you avoided an impulse buy, that amount was added to
+                your portfolio on that day and started growing
+              </p>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-[1fr_auto] pb-2 border-b border-[#f0f0f0] text-sm text-[#666]">
@@ -853,7 +942,10 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
                 <div className="text-right">Amount</div>
               </div>
               {savingsHistory.map((item) => (
-                <div key={item.id} className="grid grid-cols-[1fr_auto] items-center gap-4">
+                <div
+                  key={item.id}
+                  className="grid grid-cols-[1fr_auto] items-center gap-4"
+                >
                   <div className="flex items-center gap-3">
                     {item.icon ? (
                       <img src={item.icon} alt={item.company} className="w-10 h-10 rounded-lg object-cover bg-[#f5f5f5]" />
@@ -864,11 +956,16 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
                     )}
                     <div>
                       <div className="text-sm">{item.company}</div>
-                      <div className="text-xs text-[#999999]">Added {item.daysAgo} day{item.daysAgo > 1 ? 's' : ''} ago</div>
+                      <div className="text-xs text-[#999999]">
+                        Added {item.daysAgo} day{item.daysAgo > 1 ? "s" : ""}{" "}
+                        ago
+                      </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm mb-0.5">${item.amount.toFixed(2)}</div>
+                    <div className="text-sm mb-0.5">
+                      ${item.amount.toFixed(2)}
+                    </div>
                     <div className="text-xs text-[#FF88B7]">→ Portfolio</div>
                   </div>
                 </div>
@@ -888,18 +985,22 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
               <div>
                 <div className="text-3xl mb-1">${currentValue.toFixed(2)}</div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-[#FF88B7]">+${totalGain.toFixed(2)} ({gainPercentage}%)</span>
+                  <span className="text-sm text-[#FF88B7]">
+                    +${totalGain.toFixed(2)} ({gainPercentage}%)
+                  </span>
                   <TrendingUp className="w-4 h-4 text-[#FF88B7]" />
                 </div>
               </div>
               <div className="relative">
-                <button 
+                <button
                   className="flex items-center gap-2 px-4 py-2 bg-[#f5f5f5] rounded-lg hover:bg-[#e5e5e5] transition-colors cursor-pointer"
                   onClick={() => setShowTickerDropdown(!showTickerDropdown)}
                 >
                   <div>
                     <div className="text-sm">{selectedTicker}</div>
-                    <div className="text-xs text-[#666]">{ETF_OPTIONS[selectedTicker].description}</div>
+                    <div className="text-xs text-[#666]">
+                      {ETF_OPTIONS[selectedTicker].description}
+                    </div>
                   </div>
                   <ChevronDown className="w-4 h-4 text-[#999999]" />
                 </button>
@@ -915,8 +1016,13 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
                         }}
                       >
                         <div className="text-sm mb-0.5">{ticker}</div>
-                        <div className="text-xs text-[#999]">{ETF_OPTIONS[ticker].description}</div>
-                        <div className="text-xs text-[#0fedbe] mt-1">~{(ETF_OPTIONS[ticker].annualReturn * 100).toFixed(1)}% annual return</div>
+                        <div className="text-xs text-[#999]">
+                          {ETF_OPTIONS[ticker].description}
+                        </div>
+                        <div className="text-xs text-[#0fedbe] mt-1">
+                          ~{(ETF_OPTIONS[ticker].annualReturn * 100).toFixed(1)}
+                          % annual return
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -929,48 +1035,55 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
                 <ComposedChart data={etfData}>
                   <defs>
                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#FF88B7" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#FF88B7" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#FF88B7" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#FF88B7" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                  <XAxis 
-                    dataKey="date" 
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#f0f0f0"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="date"
                     stroke="#999999"
-                    style={{ fontSize: '12px' }}
+                    style={{ fontSize: "12px" }}
                     tickLine={false}
                   />
-                  <YAxis 
+                  <YAxis
                     stroke="#999999"
-                    style={{ fontSize: '12px' }}
+                    style={{ fontSize: "12px" }}
                     tickLine={false}
                     tickFormatter={(value) => `$${value.toFixed(0)}`}
                   />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                      border: '1px solid #e5e5e5',
-                      borderRadius: '8px',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                      backgroundColor: "rgba(255, 255, 255, 0.95)",
+                      border: "1px solid #e5e5e5",
+                      borderRadius: "8px",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                     }}
                     formatter={(value: number, name: string) => {
-                      if (name === 'value') return [`$${value.toFixed(2)}`, 'Portfolio Value'];
-                      if (name === 'principal') return [`$${value.toFixed(2)}`, 'Principal'];
-                      if (name === 'gain') return [`$${value.toFixed(2)}`, 'Gain'];
+                      if (name === "value")
+                        return [`$${value.toFixed(2)}`, "Portfolio Value"];
+                      if (name === "principal")
+                        return [`$${value.toFixed(2)}`, "Principal"];
+                      if (name === "gain")
+                        return [`$${value.toFixed(2)}`, "Gain"];
                       return value;
                     }}
                   />
-                  <Area 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="#FF88B7" 
+                  <Area
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#FF88B7"
                     strokeWidth={2}
-                    fill="url(#colorValue)" 
+                    fill="url(#colorValue)"
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="principal" 
-                    stroke="#7B61FF" 
+                  <Line
+                    type="monotone"
+                    dataKey="principal"
+                    stroke="#7B61FF"
                     strokeWidth={1.5}
                     strokeDasharray="5 5"
                     dot={false}
@@ -1001,59 +1114,77 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
               <span className="text-sm opacity-90">Investment Period</span>
             </div>
             <div className="text-sm mb-1 opacity-90">
-              {accountCreationDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-              {' - '}
-              {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              {accountCreationDate.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              })}
+              {" - "}
+              {endDate.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
             </div>
-            <div className="text-xs opacity-75 mb-4">Account opened {Math.floor((new Date().getTime() - accountCreationDate.getTime()) / (1000 * 60 * 60 * 24))} days ago</div>
-            
+            <div className="text-xs opacity-75 mb-4">
+              Account opened{" "}
+              {Math.floor(
+                (new Date().getTime() - accountCreationDate.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              )}{" "}
+              days ago
+            </div>
+
             {/* Time Range Selector */}
             <div className="flex gap-2 mb-4">
-              {(['6mo', '1Y', '2Y', '5Y'] as const).map((range) => (
+              {(["6mo", "1Y", "2Y", "5Y"] as const).map((range) => (
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
                   className={`flex-1 px-3 py-1.5 rounded-lg text-xs transition-all ${
                     timeRange === range
-                      ? 'bg-white text-[#7B61FF]'
-                      : 'bg-white/20 hover:bg-white/30'
+                      ? "bg-white text-[#7B61FF]"
+                      : "bg-white/20 hover:bg-white/30"
                   }`}
                 >
                   {range}
                 </button>
               ))}
             </div>
-            
+
             {/* Recurring Contributions Section */}
             <div className="pt-4 border-t border-white/20">
-              <div className="text-xs opacity-90 mb-3">Set Regular Contributions</div>
+              <div className="text-xs opacity-90 mb-3">
+                Set Regular Contributions
+              </div>
               <div className="flex gap-2 mb-2">
                 <div className="flex-1 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/20">
                   <input
                     type="number"
-                    value={recurringAmount || ''}
-                    onChange={(e) => setRecurringAmount(parseFloat(e.target.value) || 0)}
+                    value={recurringAmount || ""}
+                    onChange={(e) =>
+                      setRecurringAmount(parseFloat(e.target.value) || 0)
+                    }
                     placeholder="$0"
                     className="w-full bg-transparent text-white text-sm outline-none placeholder:text-white/40"
                   />
                 </div>
                 <div className="flex gap-1 bg-white/10 backdrop-blur-sm rounded-lg p-1 border border-white/20">
                   <button
-                    onClick={() => setRecurringFrequency('weekly')}
+                    onClick={() => setRecurringFrequency("weekly")}
                     className={`px-2 py-1 rounded text-xs transition-all ${
-                      recurringFrequency === 'weekly'
-                        ? 'bg-white text-[#7B61FF]'
-                        : 'text-white/80 hover:text-white'
+                      recurringFrequency === "weekly"
+                        ? "bg-white text-[#7B61FF]"
+                        : "text-white/80 hover:text-white"
                     }`}
                   >
                     /wk
                   </button>
                   <button
-                    onClick={() => setRecurringFrequency('monthly')}
+                    onClick={() => setRecurringFrequency("monthly")}
                     className={`px-2 py-1 rounded text-xs transition-all ${
-                      recurringFrequency === 'monthly'
-                        ? 'bg-white text-[#7B61FF]'
-                        : 'text-white/80 hover:text-white'
+                      recurringFrequency === "monthly"
+                        ? "bg-white text-[#7B61FF]"
+                        : "text-white/80 hover:text-white"
                     }`}
                   >
                     /mo
@@ -1062,7 +1193,8 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
               </div>
               {recurringAmount > 0 && (
                 <div className="text-xs opacity-75 mt-2">
-                  Adding ${recurringAmount} {recurringFrequency} to your portfolio
+                  Adding ${recurringAmount} {recurringFrequency} to your
+                  portfolio
                 </div>
               )}
             </div>
@@ -1072,42 +1204,52 @@ export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding
           <div className="bg-white rounded-2xl p-6 border border-[#e5e5e5]">
             <h3 className="mb-4">Educational Resources</h3>
             <div className="space-y-3">
-              <div className="h-24 bg-gradient-to-br from-[#f5f5f5] to-[#e5e5e5] rounded-xl flex items-center justify-center text-xs text-[#999]">
+              <a
+                href="https://www.investopedia.com/terms/e/etf.asp"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full h-24 bg-gradient-to-br from-[#f5f5f5] to-[#f5f5f5] rounded-xl flex items-center justify-center text-xs text-white hover:shadow-md transition-shadow"
+                style={{
+                  backgroundImage: `url(${article1})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
+              >
                 What is an ETF?
-              </div>
-              <div className="h-24 bg-gradient-to-br from-[#f5f5f5] to-[#e5e5e5] rounded-xl flex items-center justify-center text-xs text-[#999]">
+              </a>
+
+              <a
+                href="https://www.ciro.ca/office-investor/investing-basics/compound-interest"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-24 bg-gradient-to-br from-[#f5f5f5] to-[#e5e5e5] rounded-xl flex items-center justify-center text-xs text-white hover:shadow-md transition-shadow"
+                style={{
+                  backgroundImage: `url(${article2})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
+              >
                 Compound Interest
-              </div>
-              <div className="h-24 bg-gradient-to-br from-[#f5f5f5] to-[#e5e5e5] rounded-xl flex items-center justify-center text-xs text-[#999]">
+              </a>
+              <a
+                href="https://www.td.com/ca/en/personal-banking/personal-investing/learn/investing-101-basics"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-24 bg-gradient-to-br from-[#f5f5f5] to-[#e5e5e5] rounded-xl flex items-center justify-center text-xs text-white hover:shadow-md transition-shadow"
+                style={{
+                  backgroundImage: `url(${article3})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
+              >
                 Investment Basics
-              </div>
+              </a>
             </div>
           </div>
 
-          {/* Key Insights */}
-          <div className="bg-[#fff7ed] rounded-2xl p-6 border border-[#ffaa2b]">
-            <div className="flex items-start gap-3">
-              <Target className="w-5 h-5 text-[#ffaa2b] flex-shrink-0 mt-0.5" />
-              <div>
-                <div className="text-sm mb-2">💡 Key Insight</div>
-                <div className="text-xs text-[#666] leading-relaxed">
-                  {loadingAi ? (
-                    <span className="animate-pulse">Generating personalized insight...</span>
-                  ) : aiInsight ? (
-                    aiInsight
-                  ) : (
-                    <>
-                      By avoiding just {impulsePurchasesCancelled} impulse purchases, you could grow your savings to 
-                      <span className="text-[#ffaa2b]"> ${currentValue.toFixed(2)}</span> in {timeRangeLabel} through smart investing!
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* Key Insights Removed */}
         </div>
       </div>
-    </div>
     </div>
   );
 }
