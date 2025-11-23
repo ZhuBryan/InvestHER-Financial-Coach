@@ -77,9 +77,9 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#2D2D2D] relative flex items-center justify-center px-8 py-16 overflow-hidden">
+    <div className="min-h-screen bg-[#2D2D2D] relative flex flex-col overflow-x-hidden overscroll-y-none">
       {/* Animated Aurora background */}
-      <div className="fixed inset-0 z-0 opacity-40">
+      <div className="fixed inset-0 z-0 opacity-40 pointer-events-none">
         <Aurora
           colorStops={["#FF88B7", "#7B61FF", "#FF88B7"]}
           blend={0.6}
@@ -88,12 +88,13 @@ export default function AuthPage() {
         />
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-[500px] space-y-12 px-8"
-      >
+      <div className="flex-grow flex flex-col items-center py-16 px-8 w-full">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="relative z-10 w-full max-w-[500px] space-y-12 my-auto"
+        >
         {/* Header - 8px grid: spacing in multiples of 8 */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -261,7 +262,8 @@ export default function AuthPage() {
             {isSignUp ? 'Sign in' : 'Sign up'}
           </button>
         </p>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   )
 }
