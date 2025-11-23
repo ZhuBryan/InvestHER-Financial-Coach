@@ -231,3 +231,71 @@
 .investher-close-btn:hover {
   color: #4B5563;
 }
+
+/* Product Details Section (AI-scraped data) */
+#investher-product-details {
+  animation: investher-slide-in 0.4s ease-out;
+}
+
+@keyframes investher-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.investher-store-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(219, 39, 119, 0.05);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #6B7280;
+  font-weight: 500;
+}
+
+.investher-store-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+.investher-product-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.investher-product-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.investher-product-name {
+  color: #374151;
+  font-weight: 500;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 12px;
+}
+
+.investher-product-price {
+  color: #9CA3AF;
+  font-weight: 600;
+  white-space: nowrap;
+}

@@ -14,6 +14,8 @@ serve(async (req) => {
   try {
     const { user_id, total_price, products, store, category, store_image, status } = await req.json()
 
+    console.log("Received purchase data:", { user_id, total_price, store, category, status });
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -32,8 +34,14 @@ serve(async (req) => {
           status // 'success' (saved) or 'failure' (bought)
         }
       ])
+      .select()
 
-    if (error) throw error
+    if (error) {
+      console.error("Supabase Insert Error:", error);
+      throw error
+    }
+
+    console.log("Purchase inserted successfully:", data);
 
     return new Response(
       JSON.stringify({ message: "Purchase logged successfully", data }),
