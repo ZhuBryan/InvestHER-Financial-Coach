@@ -1,4 +1,26 @@
+<<<<<<< HEAD
+# Environments
+/env
+=======
 node_modules/
 .DS_Store
 dist/
+>>>>>>> 02fce064d8db86c52df8de2dc4d77f997537f3ba
 .env
+venv/
+__pycache__/
+*.pyc
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Node
+node_modules/
+
+# Chrome Extension Secrets
+chrome_extension/config.js
+
+# Supabase
+supabase/.temp/
+
