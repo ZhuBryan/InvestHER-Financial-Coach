@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
-import { TrendingUp, Calendar, DollarSign, Target, ChevronDown, Info, Zap, ChevronUp, CreditCard, AlertCircle, LogOut } from 'lucide-react';
+import { TrendingUp, Calendar, DollarSign, Target, ChevronDown, Info, Zap, ChevronUp, CreditCard, AlertCircle, LogOut, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 // Mock savings history data
@@ -182,7 +182,7 @@ function calculateLoanPayoff(
   };
 }
 
-export function InvestmentDashboard() {
+export function InvestmentDashboard({ onBackToOnboarding }: { onBackToOnboarding?: () => void }) {
   const { signOut, user } = useAuth();
   const [selectedTicker, setSelectedTicker] = useState<ETFTicker>('VDY');
   const [showTickerDropdown, setShowTickerDropdown] = useState(false);
@@ -289,14 +289,27 @@ export function InvestmentDashboard() {
       {/* Header */}
       <div className="max-w-[1400px] mx-auto mb-8">
         <div className="bg-[#2D2D2D]/90 backdrop-blur-xl rounded-3xl p-8 border border-white/10 relative">
-          {/* Logout Button */}
-          <button
-            onClick={() => signOut()}
-            className="absolute top-6 right-6 flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/15 text-white/80 hover:text-white rounded-xl transition-all duration-300 hover:scale-105 border border-white/10"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="text-sm font-medium">Logout</span>
-          </button>
+          <div className="absolute top-6 right-6 flex gap-3">
+            {/* Back to Onboarding Button */}
+            {onBackToOnboarding && (
+              <button
+                onClick={onBackToOnboarding}
+                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/15 text-white/80 hover:text-white rounded-xl transition-all duration-300 hover:scale-105 border border-white/10"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="text-sm font-medium">Onboarding</span>
+              </button>
+            )}
+
+            {/* Logout Button */}
+            <button
+              onClick={() => signOut()}
+              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/15 text-white/80 hover:text-white rounded-xl transition-all duration-300 hover:scale-105 border border-white/10"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="text-sm font-medium">Logout</span>
+            </button>
+          </div>
 
           <h1 className="text-center mb-4 text-white text-[32px] font-bold">
             Welcome back, {user?.user_metadata?.full_name?.split(' ')[0] || 'Investor'}

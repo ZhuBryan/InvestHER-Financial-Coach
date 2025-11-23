@@ -1,5 +1,11 @@
+<<<<<<< HEAD
 # Environments
 /env
+=======
+node_modules/
+.DS_Store
+dist/
+>>>>>>> 02fce064d8db86c52df8de2dc4d77f997537f3ba
 .env
 venv/
 __pycache__/

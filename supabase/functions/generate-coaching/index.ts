@@ -47,12 +47,14 @@ Task:
 3. Calculate a specific contribution to their goal ("${goalList}"). Format: "X% of your [Goal Name] goal" or "A significant step toward [Goal Name]".
 4. Generate 1 "Pro" of buying this item (be witty/sarcastic but acknowledge it's nice).
 5. Generate 1 "Con" of buying this item (financial reality check).
+6. Write a short, punchy 1-sentence message (max 20 words) persuading them to save this money instead.
 
 Return ONLY a JSON object with this structure:
 {
   "alternatives": ["coffee_calc", "grocery_calc", "goal_calc"],
   "pro": "The pro text",
-  "con": "The con text"
+  "con": "The con text",
+  "message": "The persuasive message"
 }`;
 
     const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
@@ -65,7 +67,8 @@ Return ONLY a JSON object with this structure:
     let aiResponse = {
         alternatives: ["Invest in your future", "Save for a rainy day", "Treat yourself later"],
         pro: "It looks nice!",
-        con: "Do you really need it?"
+        con: "Do you really need it?",
+        message: "Think about your future!"
     };
 
     if (geminiData.candidates && geminiData.candidates[0].content) {
@@ -79,19 +82,48 @@ Return ONLY a JSON object with this structure:
         }
     }
 
-    // 4. Call ElevenLabs API (Optional - keeping it simple for now, maybe just read the Con?)
-    // For this new UI, we might not need audio immediately, or we can read the "Con" message.
-    // Let's skip audio for now to speed up the UI rendering as per the new design which doesn't explicitly show a speaker icon in the main view.
-    // Or we can generate audio for the "Con" message.
-    
-    /* 
+    // 4. Call ElevenLabs API
     const elevenApiKey = Deno.env.get('ELEVENLABS_API_KEY');
-    // ... (Audio generation logic if needed)
-    */
+    let audioBase64 = null;
+
+    if (elevenApiKey && aiResponse.message) {
+        try {
+            const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'xi-api-key': elevenApiKey
+                },
+                body: JSON.stringify({
+                    text: aiResponse.message,
+                    model_id: "eleven_monolingual_v1",
+                    voice_settings: {
+                        stability: 0.5,
+                        similarity_boost: 0.5
+                    }
+                })
+            });
+
+            if (elevenRes.ok) {
+                const audioBuffer = await elevenRes.arrayBuffer();
+                // Convert ArrayBuffer to Base64
+                const bytes = new Uint8Array(audioBuffer);
+                let binary = '';
+                for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                audioBase64 = btoa(binary);
+            } else {
+                console.error("ElevenLabs Error:", await elevenRes.text());
+            }
+        } catch (e) {
+            console.error("ElevenLabs Exception:", e);
+        }
+    }
 
     // 5. Return Result
     return new Response(
-      JSON.stringify(aiResponse),
+      JSON.stringify({ ...aiResponse, audio: audioBase64 }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 

@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
     // Use config from config.js (loaded in html)
     // Fallback if config.js isn't loaded correctly or variables are missing
-    const DASHBOARD_URL = "http://localhost:3000"; // Updated to match vite.config.ts
+    const DASHBOARD_URL = "http://localhost:3001"; // Updated to match current running port
   
     // Check if user is already logged in
     chrome.storage.local.get(['user', 'access_token'], (result) => {

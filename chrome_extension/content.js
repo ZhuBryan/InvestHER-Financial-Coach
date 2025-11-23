@@ -191,9 +191,35 @@ function createCoachPopup(productName, price) {
     if (data.pro) document.getElementById('investher-pro-text').innerText = data.pro;
     if (data.con) document.getElementById('investher-con-text').innerText = data.con;
 
+    // Play Audio if available
+    if (data.audio) {
+      try {
+        const audio = new Audio("data:audio/mpeg;base64," + data.audio);
+        audio.play();
+      } catch (e) {
+        console.error("InvestHer: Audio playback failed", e);
+      }
+    }
+
     // Button Handlers
     document.getElementById('investher-save-btn').addEventListener('click', () => {
-      // TODO: Save logic
+      // Log Purchase as "Saved"
+      fetch(SUPABASE_LOG_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: currentUserId,
+          total_price: price,
+          products: [productName],
+          store: window.location.hostname,
+          category: "Savings",
+          status: "saved",
+          store_image: ""
+        })
+      }).then(() => {
+        console.log("InvestHer: Savings logged!");
+      }).catch(err => console.error("InvestHer: Failed to log savings", err));
+
       close();
       chrome.runtime.sendMessage({ action: "closeTab" });
     });
@@ -348,7 +374,7 @@ function detectProduct() {
           price = p;
           
           // Try to find title
-          const titleSelectors = ['#productTitle', 'h1', '.product-title'];
+          const titleSelectors = ['#productTitle', 'h1', '.product-title', '.product-name'];
           for (const tSel of titleSelectors) {
             const tEl = document.querySelector(tSel);
             if (tEl) {
@@ -362,6 +388,24 @@ function detectProduct() {
         }
       }
     }
+  }
+
+  // Try to find title if it's still generic "Your Cart"
+  if (title === "Your Cart") {
+      // Look for item names in cart
+      const itemSelectors = ['.sc-product-title', '.product-name', '.item-title', 'h3', 'h4'];
+      for (const sel of itemSelectors) {
+          const el = document.querySelector(sel);
+          if (el && el.innerText.length > 3) {
+              title = el.innerText.trim();
+              // If multiple items, maybe just say "Your Cart with [Item]..."
+              const count = document.querySelectorAll(sel).length;
+              if (count > 1) {
+                  title = `${title} and ${count - 1} other items`;
+              }
+              break;
+          }
+      }
   }
 
   if (price > 0) {

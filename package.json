@@ -1,4 +1,7 @@
 {
+  "dependencies": {
+    "react-router-dom": "^7.9.6"
+  },
   "devDependencies": {
     "supabase": "^2.58.5"
   }
