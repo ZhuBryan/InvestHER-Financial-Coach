@@ -1,55 +1,62 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     body {
-      width: 300px;
-      padding: 20px;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #fdf2f8; /* Pink-50 */
+      width: 320px;
+      padding: 0;
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background-color: #FFFFFF;
+      color: #1F2937;
+    }
+    .container {
+      padding: 24px;
     }
     h1 {
-      color: #be185d; /* Pink-700 */
-      font-size: 18px;
-      margin-bottom: 20px;
+      font-size: 20px;
+      font-weight: 600;
+      color: #000000;
+      margin: 0 0 8px 0;
       text-align: center;
     }
-    input {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 10px;
-      border: 1px solid #fbcfe8; /* Pink-200 */
-      border-radius: 6px;
-      box-sizing: border-box;
+    .subtitle {
+      font-size: 13px;
+      color: #6B7280;
+      text-align: center;
+      margin-bottom: 24px;
+      line-height: 1.4;
     }
     button {
       width: 100%;
-      padding: 10px;
-      background-color: #db2777; /* Pink-600 */
-      color: white;
-      border: none;
-      border-radius: 6px;
+      padding: 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
       cursor: pointer;
-      font-weight: bold;
-      margin-bottom: 10px;
+      transition: all 0.2s;
+      border: none;
+      margin-bottom: 12px;
+      font-family: 'Inter', sans-serif;
     }
-    button:hover {
-      background-color: #be185d;
+    .primary-btn {
+      background: #F472B6;
+      color: white;
+      box-shadow: 0 4px 12px rgba(244, 114, 182, 0.3);
+    }
+    .primary-btn:hover {
+      background: #EC4899;
+      transform: translateY(-1px);
     }
     .secondary-btn {
-      background-color: white;
-      color: #db2777;
-      border: 1px solid #db2777;
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      color: #374151;
     }
     .secondary-btn:hover {
-      background-color: #fdf2f8;
-    }
-    #error-msg {
-      color: red;
-      font-size: 12px;
-      text-align: center;
-      margin-top: 10px;
-      display: none;
+      background: #F9FAFB;
+      border-color: #D1D5DB;
     }
     .hidden {
       display: none;
@@ -57,24 +64,44 @@
     #user-info {
       text-align: center;
       margin-bottom: 20px;
-      color: #374151;
+      padding: 12px;
+      background: #FDF2F8;
+      border-radius: 12px;
+      color: #DB2777;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .logo-area {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+    .logo-img {
+      width: 64px;
+      height: 64px;
+      object-fit: contain;
     }
   </style>
 </head>
 <body>
-  <h1>InvestHer</h1>
-  
-  <div id="login-view">
-    <p class="investher-subtitle" style="text-align: center; margin-bottom: 20px;">
-      Connect to your dashboard to sync your goals and track purchases.
-    </p>
-    <button id="connect-btn">Connect to Dashboard</button>
-  </div>
+  <div class="container">
+    <div class="logo-area">
+      <img src="logo.png" class="logo-img" alt="InvestHer Logo">
+    </div>
+    <h1>InvestHer</h1>
+    
+    <div id="login-view">
+      <p class="subtitle">
+        Connect to your dashboard to sync your goals and track purchases.
+      </p>
+      <button id="connect-btn" class="primary-btn">Connect to Dashboard</button>
+    </div>
 
-  <div id="logged-in-view" class="hidden">
-    <div id="user-info">Logged in!</div>
-    <button id="dashboard-btn">Go to Dashboard</button>
-    <button id="logout-btn" class="secondary-btn">Log Out</button>
+    <div id="logged-in-view" class="hidden">
+      <div id="user-info">Logged in</div>
+      <button id="dashboard-btn" class="primary-btn">Go to Dashboard</button>
+      <button id="logout-btn" class="secondary-btn">Log Out</button>
+    </div>
   </div>
 
   <script src="config.js"></script>

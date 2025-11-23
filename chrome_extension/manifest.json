@@ -16,5 +16,11 @@
       "js": ["config.js", "content.js"],
       "css": ["styles.css"]
     }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["logo.png"],
+      "matches": ["<all_urls>"]
+    }
   ]
 }
