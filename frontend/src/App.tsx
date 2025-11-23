@@ -6,6 +6,7 @@ import { useAuth } from './context/AuthContext';
 import { supabase } from './supabaseClient';
 import AuthPage from './pages/AuthPage';
 import OnBoarding from './pages/OnboardingPage';
+import { Toaster } from './components/ui/sonner';
 
 export default function App() {
   const { user } = useAuth();
@@ -60,43 +61,46 @@ export default function App() {
   }
 
   return (
-    <Routes>
-      <Route 
-        path="/login" 
-        element={user ? <Navigate to="/dashboard" replace /> : <AuthPage />} 
-      />
-      
-      <Route 
-        path="/onboarding" 
-        element={
-          !user ? <Navigate to="/login" replace /> : 
-          <OnBoarding onComplete={handleOnboardingComplete} />
-        } 
-      />
+    <>
+      <Toaster />
+      <Routes>
+        <Route 
+          path="/login" 
+          element={user ? <Navigate to="/dashboard" replace /> : <AuthPage />} 
+        />
+        
+        <Route 
+          path="/onboarding" 
+          element={
+            !user ? <Navigate to="/login" replace /> : 
+            <OnBoarding onComplete={handleOnboardingComplete} />
+          } 
+        />
 
-      <Route 
-        path="/dashboard" 
-        element={
-          !user ? <Navigate to="/login" replace /> :
-          !hasCompletedOnboarding ? <Navigate to="/onboarding" replace /> :
-          <div className="min-h-screen bg-[#2D2D2D] relative">
-            <div className="fixed inset-0 z-0 opacity-40">
-              <Aurora
-                colorStops={["#FF88B7", "#7B61FF", "#FF88B7"]}
-                blend={0.6}
-                amplitude={0.8}
-                speed={0.4}
-              />
+        <Route 
+          path="/dashboard" 
+          element={
+            !user ? <Navigate to="/login" replace /> :
+            !hasCompletedOnboarding ? <Navigate to="/onboarding" replace /> :
+            <div className="min-h-screen bg-[#2D2D2D] relative">
+              <div className="fixed inset-0 z-0 opacity-40">
+                <Aurora
+                  colorStops={["#FF88B7", "#7B61FF", "#FF88B7"]}
+                  blend={0.6}
+                  amplitude={0.8}
+                  speed={0.4}
+                />
+              </div>
+              <div className="relative z-10">
+                <InvestmentDashboard onBackToOnboarding={handleBackToOnboarding} />
+              </div>
             </div>
-            <div className="relative z-10">
-              <InvestmentDashboard onBackToOnboarding={handleBackToOnboarding} />
-            </div>
-          </div>
-        } 
-      />
+          } 
+        />
 
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </>
   );
 }
